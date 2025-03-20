@@ -4,7 +4,7 @@ A Python tool to convert EPUB ebooks to audiobooks using Microsoft Edge's Text-t
 
 ## Features
 
-- Convert any EPUB ebook to MP3 audiobook chapters
+- Convert any ebook (currently only .epub) to .mp3 audiobook chapters
 - Extract chapter titles and content automatically
 - Process multiple chapters concurrently for faster conversion
 - Organize output files with proper sequential numbering
@@ -13,7 +13,7 @@ A Python tool to convert EPUB ebooks to audiobooks using Microsoft Edge's Text-t
 
 ## How It Works
 
-AnyAudiobook parses EPUB files, extracts the text content chapter by chapter, and uses Edge TTS to generate natural-sounding audio files. The tool intelligently handles chapter titles, removes unnecessary elements like scripts and styles, and processes the content in parallel to speed up conversion.
+AnyAudiobook parses ebook files, extracts the text content chapter by chapter, and uses Edge TTS to generate natural-sounding audio files. The tool intelligently handles chapter titles, removes unnecessary elements like scripts and styles, and processes the content in parallel to speed up conversion.
 
 ## Usage
 
@@ -49,12 +49,6 @@ print(voices)
 
 ## Requirements
 
-- Python 3.9+
-- edge-tts
-- ebooklib
-- beautifulsoup4
-- pydantic
-
-## License
-
-MIT
+- Python 3.9+ (tested with py3.13)
+- uv (or install manually against pyproject.toml) requirements)
+- Windows 10/11 with Microsoft Edge installed
