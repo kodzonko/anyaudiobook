@@ -108,7 +108,6 @@ class EpubToAudiobookConverter:
         """Split the epub into chapters"""
         book = epub.read_epub(self.epub_path)
         chapter_number = 1
-        temp_counter = 0
         for item in book.get_items():
             if item.get_type() == ebooklib.ITEM_DOCUMENT:
                 html_content = item.get_content().decode("utf-8")
@@ -132,14 +131,14 @@ class EpubToAudiobookConverter:
                         )
                     )
                     chapter_number += 1
-                    temp_counter += 1
 
 
-book = EpubToAudiobookConverter(
-    r"C:\Users\janwa\Downloads\zzzzzzzzzzzzzzzzzzzzzzz.epub",
-    "output",
-    "en-US-BrianNeural",
-)
-book.chunk_epub()
+if __name__ == "__main__":
+    book = EpubToAudiobookConverter(
+        r"C:\Users\janwa\Downloads\zzzzzzzzzzzzzzzzzzzzzzz.epub",
+        "output",
+        "en-US-BrianNeural",
+    )
+    book.chunk_epub()
 
-book.generate_audiobook()
+    book.generate_audiobook()
