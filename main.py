@@ -3,6 +3,7 @@ import warnings
 import ebooklib
 from ebooklib import epub
 from bs4 import BeautifulSoup
+from edge_tts.typing import Voice
 from pydantic import BaseModel
 import asyncio
 import edge_tts
@@ -18,17 +19,22 @@ warnings.filterwarnings(
 )
 
 
-async def get_available_voices():
+async def get_available_voices() -> list[Voice]:
+    """Get a list of available voices in this TTS engine"""
     return await edge_tts.list_voices()
 
 
 class BookContent(BaseModel):
+    """Model to store the content of a book chapter"""
+
     chapter_number: int
     title: str
     content: str
 
 
 class EpubToAudiobookConverter:
+    """Convert an epub file to an audiobook using TTS"""
+
     def __init__(self, epub_path: str, output_dir: str | Path, voice: str) -> None:
         self.epub_path = epub_path
         self.audiobook_path = Path(output_dir)
@@ -44,7 +50,7 @@ class EpubToAudiobookConverter:
         return text != text.upper()
 
     def _make_output_path(self, book_content: BookContent) -> Path:
-        # Calculate padding digits based on total number of chapters
+        """Calculate padding digits based on total number of chapters"""
         total_chapters = len(self.chunked_content)
         padding_length = len(str(total_chapters))
 
@@ -53,11 +59,12 @@ class EpubToAudiobookConverter:
 
         return self.audiobook_path / f"{padded_number}. {book_content.title}.mp3"
 
-    def _ensure_output_dir(self):
+    def _ensure_output_dir(self) -> None:
+        """Ensure the output directory exists"""
         self.audiobook_path.mkdir(parents=True, exist_ok=True)
 
     def _skip_fluff(self, title: str) -> bool:
-        """Skip chapters that are fluff"""
+        """Skip chapters that are fluff like intro or about authors"""
         return title not in [
             "Contents",
             "ALSO EDITED BY ANN AND JEFF VANDERMEER",
@@ -82,7 +89,7 @@ class EpubToAudiobookConverter:
         # Create a semaphore to limit concurrent tasks
         semaphore = asyncio.Semaphore(number_of_concurrent_tasks)
 
-        async def _process_chapter(chapter: BookContent):
+        async def _process_chapter(chapter: BookContent) -> None:
             async with semaphore:
                 print(
                     f"Processing chapter: {chapter.chapter_number}/{len(self.chunked_content)} \033[31m{chapter.title}\033[0m"
@@ -92,12 +99,13 @@ class EpubToAudiobookConverter:
         tasks = [_process_chapter(chapter) for chapter in self.chunked_content]
         await asyncio.gather(*tasks)
 
-    def generate_audiobook(self, number_of_concurrent_tasks: int = 10):
+    def generate_audiobook(self, number_of_concurrent_tasks: int = 10) -> None:
+        """Generate the audiobook from the chunked content"""
         self._ensure_output_dir()
         asyncio.run(self._generate_all_chapters(number_of_concurrent_tasks))
 
-    def chunk_epub(self):
-        # Split the epub into chunks by chapter
+    def chunk_epub(self) -> None:
+        """Split the epub into chapters"""
         book = epub.read_epub(self.epub_path)
         chapter_number = 1
         temp_counter = 0
@@ -125,8 +133,6 @@ class EpubToAudiobookConverter:
                     )
                     chapter_number += 1
                     temp_counter += 1
-            if temp_counter == 2:
-                break
 
 
 book = EpubToAudiobookConverter(
@@ -135,6 +141,5 @@ book = EpubToAudiobookConverter(
     "en-US-BrianNeural",
 )
 book.chunk_epub()
-book.generate_audiobook()
 
-# print(book.chunked_content)
+book.generate_audiobook()
