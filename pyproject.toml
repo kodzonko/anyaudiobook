@@ -5,9 +5,12 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "beautifulsoup4>=4.13.3",
     "black>=25.1.0",
- "edge-tts>=7.0.0",
- "marimo>=0.11.20",
+    "ebooklib>=0.18",
+    "edge-tts>=7.0.0",
+    "marimo>=0.11.22",
+    "pydantic>=2.10.6"
 ]
 
 [dependency-groups]
