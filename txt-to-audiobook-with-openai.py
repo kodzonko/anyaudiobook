@@ -7,13 +7,13 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _(__file__):
     from pathlib import Path
-
 
     OUTPUT_DIR = Path(__file__).parent / "output"
 
@@ -99,12 +99,9 @@ def _(
     OUTPUT_FILE = OUTPUT_DIR / f"{output_file_name.value}"
 
     if input_file_content:
-        communicate = edge_tts.Communicate(
-            input_file_content, voice_selector.value
-        )
+        communicate = edge_tts.Communicate(input_file_content, voice_selector.value)
         communicate.save_sync(str(OUTPUT_FILE))
         print(f"File saved to {str(OUTPUT_FILE)}")
-
 
     return OUTPUT_FILE, communicate
 
