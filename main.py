@@ -57,7 +57,28 @@ class EpubToAudiobookConverter:
         # Format the chapter number with dynamic padding
         padded_number = f"{book_content.chapter_number:0{padding_length}d}"
 
-        return self.audiobook_path / f"{padded_number}. {book_content.title}.mp3"
+        # Clean the title to make it suitable for Windows filenames
+        # Remove characters that are invalid in Windows filenames: \ / : * ? " < > |
+        clean_title = (
+            book_content.title.replace("\\", "")
+            .replace("/", "")
+            .replace(":", "")
+            .replace("*", "")
+        )
+        clean_title = (
+            clean_title.replace("?", "")
+            .replace('"', "")
+            .replace("<", "")
+            .replace(">", "")
+            .replace("|", "")
+        )
+
+        # Trim whitespace and limit length to avoid path too long errors
+        clean_title = clean_title.strip()
+        if len(clean_title) > 150:
+            clean_title = clean_title[:147] + "..."
+
+        return self.audiobook_path / f"{padded_number}. {clean_title}.mp3"
 
     def _ensure_output_dir(self) -> None:
         """Ensure the output directory exists"""

@@ -11,7 +11,8 @@ dependencies = [
     "ebooklib>=0.18",
     "edge-tts>=7.0.0",
     "marimo>=0.11.22",
-    "pydantic>=2.10.6"
+    "mutagen>=1.47.0",
+    "pydantic>=2.10.6",
 ]
 
 [dependency-groups]
