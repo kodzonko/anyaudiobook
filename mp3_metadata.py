@@ -10,6 +10,7 @@ def add_metadata(
     author: str,
     book_title: str,
     chapter_title: str,
+    track_number: int,
     cover_image: str | Path | None = None,
 ) -> None:
     """
@@ -20,6 +21,7 @@ def add_metadata(
         author (str): Author name to add as the artist
         book_title (str): Book title to add as the album
         chapter_title (str): Chapter title to add as the track title
+        track_number (int): Track number to add
         cover_image (str|Path|None): Path to cover image file to add as album art
 
     Returns:
@@ -40,6 +42,7 @@ def add_metadata(
     audio["artist"] = author
     audio["album"] = book_title
     audio["title"] = chapter_title
+    audio["tracknumber"] = str(track_number)  # Add track number tag
     audio.save()
 
     if cover_image:
@@ -66,7 +69,9 @@ def add_metadata(
 
 if __name__ == "__main__":
 
-    for mp3_file in Path("output").rglob("*.mp3"):
+    for mp3_file in Path(
+        r"C:\Users\janwa\Downloads\VanderMeer Jeff, VanderMeer Ann\The Big Book of Science Fiction"
+    ).rglob("*.mp3"):
         file_stem = mp3_file.stem
         # Remove leading numbers followed by a dot (like "004.")
         chapter_title = file_stem
@@ -74,8 +79,9 @@ if __name__ == "__main__":
             chapter_title = "".join(file_stem.split(".", 1)[1:]).strip()
         add_metadata(
             mp3_file,
-            "Jeff VanderMeer",
+            "Ann VanderMeer, Jeff VanderMeer",
             "The Big Book of Science Fiction",
             chapter_title,
-            "the-big-book-of-science-fiction-b-iext120009289.jpg",
+            int(file_stem.split(".")[0]),
+            r"C:\Users\janwa\Downloads\VanderMeer Jeff, VanderMeer Ann\The Big Book of Science Fiction\The Big Book of Science Fiction.jpg",
         )
