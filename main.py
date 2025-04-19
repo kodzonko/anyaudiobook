@@ -1,12 +1,13 @@
-from pathlib import Path
+import asyncio
 import warnings
+from pathlib import Path
+
 import ebooklib
-from ebooklib import epub
+import edge_tts
 from bs4 import BeautifulSoup
+from ebooklib import epub
 from edge_tts.typing import Voice
 from pydantic import BaseModel
-import asyncio
-import edge_tts
 
 # Silence specific ebooklib warnings
 warnings.filterwarnings(
@@ -35,11 +36,14 @@ class BookContent(BaseModel):
 class EpubToAudiobookConverter:
     """Convert an epub file to an audiobook using TTS"""
 
-    def __init__(self, epub_path: str, output_dir: str | Path, voice: str) -> None:
+    def __init__(
+        self, epub_path: str, output_dir: str | Path, voice: str, pitch: str = "+0Hz"
+    ) -> None:
         self.epub_path = epub_path
         self.audiobook_path = Path(output_dir)
         self.chunked_content: list[BookContent] = []
         self.voice = voice
+        self.pitch = pitch
 
     def _is_title_case(self, text: str) -> bool:
         """Check if text is in title case (each major word starts with uppercase)"""
@@ -87,19 +91,18 @@ class EpubToAudiobookConverter:
     def _skip_fluff(self, title: str) -> bool:
         """Skip chapters that are fluff like intro or about authors"""
         return title not in [
-            "Contents",
-            "ALSO EDITED BY ANN AND JEFF VANDERMEER",
-            "Text/part0002.html",
-            "Text/part0004.html",
-            "ABOUT THE EDITORS",
-            "ABOUT THE TRANSLATORS",
-            "ACKNOWLEDGMENTS",
-            "PERMISSIONS ACKNOWLEDGMENTS",
-            "About What’s next on your reading list?",
+            "Text/dedykacja.xhtml",
+            "Podziękowania",
+            "Drzewo genealogiczne",
+            "Chronologia",
+            "",
+            "Spis treści:",
         ]
 
     async def _generate_voice_for_chapter(self, book_content: BookContent) -> None:
-        communicate = edge_tts.Communicate(book_content.content, self.voice)
+        communicate = edge_tts.Communicate(
+            book_content.content, self.voice, pitch=self.pitch
+        )
         output_path = str(self._make_output_path(book_content).absolute())
         await communicate.save(output_path)
         print(
@@ -128,7 +131,7 @@ class EpubToAudiobookConverter:
     def chunk_epub(self) -> None:
         """Split the epub into chapters"""
         book = epub.read_epub(self.epub_path)
-        chapter_number = 1
+        fallback_chapter_number = 1
         for item in book.get_items():
             if item.get_type() == ebooklib.ITEM_DOCUMENT:
                 html_content = item.get_content().decode("utf-8")
@@ -136,30 +139,60 @@ class EpubToAudiobookConverter:
                 title = item.get_name()  # Default fallback title
                 heading_tag = soup.find(["h1"])
                 if heading_tag:
-                    title = heading_tag.get_text().strip()
-                    if self._is_title_case(title):
-                        title = f"About {title}"
+                    # Check if heading has a title attribute (which contains the full title with chapter number)
+                    if heading_tag.has_attr("title"):
+                        try:
+                            title = (
+                                heading_tag["title"]
+                                .split(". ")[1]
+                                .replace("„", "")
+                                .replace("”", "")
+                                .strip()
+                            )
+                        except IndexError:
+                            title = heading_tag.get_text().strip()
+                    else:
+                        # If no title attribute, use the text content of the h1 element
+                        title = heading_tag.get_text().strip()
+
+                        # Check if this is a chapter heading with an ID that contains "toc"
+                        is_chapter_heading = (
+                            heading_tag.has_attr("id")
+                            and "toc" in heading_tag["id"].lower()
+                        )
+
+                        # Only apply the "About" prefix if it's not a chapter heading and is in title case
+                        # if not is_chapter_heading and self._is_title_case(title):
+                        #     title = f"About {title}"
 
                 for element in soup(["script", "style"]):
                     element.decompose()
 
                 text = soup.get_text().strip()
 
+                try:
+                    chapter_number = int(heading_tag["title"].split(". ")[0])
+                except (KeyError, TypeError, ValueError):
+                    chapter_number = fallback_chapter_number
+
                 if text and self._skip_fluff(title):
                     self.chunked_content.append(
                         BookContent(
-                            chapter_number=chapter_number, title=title, content=text
+                            chapter_number=chapter_number,
+                            title=title,
+                            content=text,
                         )
                     )
-                    chapter_number += 1
+                    fallback_chapter_number += 1
 
 
 if __name__ == "__main__":
     book = EpubToAudiobookConverter(
-        r"C:\Users\janwa\Downloads\zzzzzzzzzzzzzzzzzzzzzzz.epub",
-        "output",
-        "en-US-BrianNeural",
+        r"C:\Users\username\path\to\ebook.epub",
+        r"C:\Users\username\path\to\output_dir",
+        "pl-PL-ZofiaNeural",
+        "-10Hz",
     )
     book.chunk_epub()
-    print("Chunked content:")
-    # book.generate_audiobook()
+
+    book.generate_audiobook(5)

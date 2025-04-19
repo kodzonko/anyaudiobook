@@ -7,6 +7,7 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -89,44 +90,46 @@ def _(mo, output_file_name, voice_selector):
 
 @app.cell
 def _(edge_tts, mo, voice_selector):
-    import tempfile
-    import os
-    import base64
     import asyncio
+    import base64
+    import os
+    import tempfile
 
     def generate_tts_audio(text, voice=voice_selector.value):
         # Create a temporary file with .mp3 extension
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_file:
             temp_file_path = temp_file.name
-    
+
         try:
             # Use the synchronous version of edge_tts
-            communicate = edge_tts.Communicate(text, voice)
+            communicate = edge_tts.Communicate(text, voice, pitch="-10Hz")
             communicate.save_sync(temp_file_path)
-        
+
             # Read the audio data into memory
             with open(temp_file_path, "rb") as audio_file:
                 audio_data = audio_file.read()
-        
+
             # Create a data URL for the audio
             audio_b64 = base64.b64encode(audio_data).decode("utf-8")
             audio_url = f"data:audio/mp3;base64,{audio_b64}"
-        
+
             # Return the audio player component
             return mo.audio(audio_url)
-    
+
         finally:
             # Clean up the temporary file
             if os.path.exists(temp_file_path):
                 os.unlink(temp_file_path)
 
-
-    audio_player = generate_tts_audio("Dzień dobry! W Polsce mamy piękną jesień. Czerwone i złote liście spadają z drzew, a poranki są chłodne i mgliste.")
+    audio_player = generate_tts_audio(
+        "Dzień dobry! W Polsce mamy piękną jesień. Czerwone i złote liście spadają z drzew, a poranki są chłodne i mgliste."
+    )
     audio_player
+
     return asyncio, audio_player, base64, generate_tts_audio, os, tempfile
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     OUTPUT_DIR,
     edge_tts,
@@ -137,9 +140,7 @@ def _(
     OUTPUT_FILE = OUTPUT_DIR / f"{output_file_name.value}"
 
     if input_file_content:
-        communicate = edge_tts.Communicate(
-            input_file_content, voice_selector.value
-        )
+        communicate = edge_tts.Communicate(input_file_content, voice_selector.value)
         communicate.save_sync(str(OUTPUT_FILE))
         print(f"File saved to {str(OUTPUT_FILE)}")
     return OUTPUT_FILE, communicate

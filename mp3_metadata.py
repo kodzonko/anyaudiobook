@@ -1,8 +1,9 @@
 from pathlib import Path
+
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3
-from mutagen.id3._util import ID3NoHeaderError
 from mutagen.id3._frames import APIC
+from mutagen.id3._util import ID3NoHeaderError
 
 
 def add_metadata(
@@ -68,10 +69,7 @@ def add_metadata(
 
 
 if __name__ == "__main__":
-
-    for mp3_file in Path(
-        r"C:\Users\janwa\Downloads\VanderMeer Jeff, VanderMeer Ann\The Big Book of Science Fiction"
-    ).rglob("*.mp3"):
+    for mp3_file in Path(r"C:\Users\username\input_dir").rglob("*.mp3"):
         file_stem = mp3_file.stem
         # Remove leading numbers followed by a dot (like "004.")
         chapter_title = file_stem
@@ -79,9 +77,9 @@ if __name__ == "__main__":
             chapter_title = "".join(file_stem.split(".", 1)[1:]).strip()
         add_metadata(
             mp3_file,
-            "Ann VanderMeer, Jeff VanderMeer",
-            "The Big Book of Science Fiction",
+            "Jane Doe",
+            "Lorem ipsum",
             chapter_title,
             int(file_stem.split(".")[0]),
-            r"C:\Users\janwa\Downloads\VanderMeer Jeff, VanderMeer Ann\The Big Book of Science Fiction\The Big Book of Science Fiction.jpg",
+            r"C:\Users\username\path\to\image.jpg",
         )
