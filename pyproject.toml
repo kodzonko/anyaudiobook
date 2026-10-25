@@ -4,21 +4,16 @@ version = "0.1.0"
 description = "A Python tool to convert ebooks to audiobooks using Microsoft Edge's Text-to-Speech engine."
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.13"
+requires-python = "~=3.14.0"
 dependencies = [
-    "beautifulsoup4>=4.13.3",
-    "black>=25.1.0",
-    "ebooklib>=0.18",
-    "edge-tts>=7.0.0",
-    "marimo>=0.11.22",
+    "beautifulsoup4>=4.13.4",
+    "black>=26.10.1",
+    "ebooklib>=0.19",
+    "edge-tts>=7.0.2",
+    "marimo>=0.23.9",
     "mutagen>=1.47.0",
-    "pydantic>=2.10.6",
+    "pydantic>=2.11.7"
 ]
 
 [dependency-groups]
-dev = [
-    "isort>=6.0.0",
- "mypy>=1.15.0",
- "openai>=1.67.0",
- "ruff>=0.9.6",
-]
+dev = ["isort>=6.0.0", "mypy>=1.15.0", "ruff>=0.12.0"]
