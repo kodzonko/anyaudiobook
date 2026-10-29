@@ -1,0 +1,12 @@
+[vars]
+python_version = "3.14"
+
+[tools]
+python = "{{ vars.python_version }}"
+uv = "0.13.6"
+
+# Keep uv on the Python interpreter selected by mise.
+[env]
+UV_PYTHON = "{{ vars.python_version }}"
+UV_PYTHON_PREFERENCE = "only-system"
+UV_PYTHON_DOWNLOADS = "never"
