@@ -1,5 +1,5 @@
 [vars]
-python_version = "3.14"
+python_version = "3.14.10"
 
 [tools]
 python = "{{ vars.python_version }}"
