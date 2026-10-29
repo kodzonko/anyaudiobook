@@ -2,6 +2,18 @@
 
 A Python tool to convert EPUB ebooks to audiobooks using Microsoft Edge's Text-to-Speech engine.
 
+## Tool setup
+
+Install [mise](https://mise.jdx.dev/getting-started.html), then run from the repository root:
+
+```sh
+mise trust
+mise install
+```
+
+Tool versions are declared in `mise.toml`. Activate mise in your shell, or prefix
+project commands with `mise exec --` (for example, `mise exec -- uv --version`).
+
 ## Features
 
 - Convert any ebook (currently only .epub) to .mp3 audiobook chapters
@@ -49,6 +61,6 @@ print(voices)
 
 ## Requirements
 
-- Python 3.9+ (tested with py3.13)
-- uv (or install manually against `pyproject.toml` requirements)
+- Python 3.14 (managed by mise)
+- uv (managed by mise); install dependencies with `uv sync --locked`
 - Windows 10/11 with Microsoft Edge installed
