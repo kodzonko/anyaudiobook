@@ -6,14 +6,16 @@ readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = "~=3.14.0"
 dependencies = [
-    "beautifulsoup4>=4.13.4",
-    "black>=26.10.1",
-    "ebooklib>=0.19",
-    "edge-tts>=7.0.2",
-    "marimo>=0.23.9",
-    "mutagen>=1.47.0",
-    "pydantic>=2.11.7"
+    "beautifulsoup4==4.15.0",
+    "ebooklib==0.21",
+    "edge-tts==7.3.1",
+    "marimo==0.25.2",
+    "mutagen==1.48.1",
+    "pydantic==2.14.3"
 ]
 
 [dependency-groups]
-dev = ["isort>=6.0.0", "mypy>=1.15.0", "ruff>=0.12.0"]
+dev = [
+    "ruff==0.17.5",
+    "ty==0.0.104"
+]
