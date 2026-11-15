@@ -36,7 +36,7 @@ from anyaudiobook.main import EpubToAudiobookConverter
 converter = EpubToAudiobookConverter(
     "path/to/your/ebook.epub",
     "output_directory",
-    "en-US-BrianNeural"  # English (US) male voice
+    "en-US-BrianNeural",  # English (US) male voice
 )
 
 # Extract chapters from the EPUB file
