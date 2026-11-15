@@ -134,17 +134,19 @@ class EpubToAudiobookConverter:
         fallback_chapter_number = 1
         for item in book.get_items():
             if item.get_type() == ebooklib.ITEM_DOCUMENT:
-                html_content = item.get_content().decode("utf-8")
+                html_content = item.get_content()
+                if isinstance(html_content, bytes):
+                    html_content = html_content.decode("utf-8")
                 soup = BeautifulSoup(html_content, "html.parser")
                 title = item.get_name()  # Default fallback title
                 heading_tag = soup.find(["h1"])
+                heading_title = heading_tag.get("title") if heading_tag else None
                 if heading_tag:
                     # Check if heading has a title attribute (which contains the full title with chapter number)
-                    if heading_tag.has_attr("title"):
+                    if isinstance(heading_title, str):
                         try:
                             title = (
-                                heading_tag["title"]
-                                .split(". ")[1]
+                                heading_title.split(". ")[1]
                                 .replace("„", "")
                                 .replace("”", "")
                                 .strip()
@@ -155,24 +157,18 @@ class EpubToAudiobookConverter:
                         # If no title attribute, use the text content of the h1 element
                         title = heading_tag.get_text().strip()
 
-                        # Check if this is a chapter heading with an ID that contains "toc"
-                        is_chapter_heading = (
-                            heading_tag.has_attr("id")
-                            and "toc" in heading_tag["id"].lower()
-                        )
-
-                        # Only apply the "About" prefix if it's not a chapter heading and is in title case
-                        # if not is_chapter_heading and self._is_title_case(title):
-                        #     title = f"About {title}"
-
                 for element in soup(["script", "style"]):
                     element.decompose()
 
                 text = soup.get_text().strip()
 
                 try:
-                    chapter_number = int(heading_tag["title"].split(". ")[0])
-                except (KeyError, TypeError, ValueError):
+                    chapter_number = (
+                        int(heading_title.split(". ")[0])
+                        if isinstance(heading_title, str)
+                        else fallback_chapter_number
+                    )
+                except ValueError:
                     chapter_number = fallback_chapter_number
 
                 if text and self._skip_fluff(title):
