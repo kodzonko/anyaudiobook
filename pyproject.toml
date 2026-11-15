@@ -16,7 +16,7 @@ dependencies = [
     "mobi==0.4.1",
     "mutagen==1.48.1",
     "pydantic==2.14.3",
-    "pymupdf==1.28.2",            # PyMuPDF 2.x pulls in about 110 MB of ML layout packages this project doesn’t use, so I’m pinning 1.28.2, which has no dependencies and the same core API.
+    "pymupdf==2.1",            # PyMuPDF 2.x pulls in about 110 MB of ML layout packages this project doesn’t use, so I’m pinning 1.28.2, which has no dependencies and the same core API.
     "textual==8.2.8",
 ]
 
