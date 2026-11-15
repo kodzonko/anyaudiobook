@@ -35,8 +35,8 @@ The reader rebuilds the text from the page layout:
 - words hyphenated at line ends are joined, also across pages
 - lines in a clearly bigger font become headings
 
-`PdfReader(outline_depth=2)` splits at deeper outline levels; by default the
-shallowest level with at least three entries is used. Multi-column layouts
+Parts start at the shallowest outline level with at least three entries.
+Multi-column layouts
 are read row by row and may come out mixed.
 
 ### Plain text
@@ -49,30 +49,15 @@ are joined. Project Gutenberg's licence header and footer are left out.
 
 Only DRM-free files can be read; others raise `UnreadableBookError`.
 
-### Choosing a reader yourself
-
-```python
-from anyaudiobook import AudiobookConverter, EdgeTTS
-from anyaudiobook.readers import PdfReader
-
-AudiobookConverter(
-    "book.pdf",
-    "out",
-    EdgeTTS("en-US-BrianNeural"),
-    reader=PdfReader(outline_depth=2, cover=False),
-)
-```
-
 ## Output
 
-| `output_format` | Writer      | `output` is                                      | Result                                                                    |
+| `OUTPUT_FORMAT` | Writer      | `output` is                                      | Result                                                                    |
 | --------------- | ----------- | ------------------------------------------------ | ------------------------------------------------------------------------- |
 | `"mp3"`         | `Mp3Writer` | a directory                                      | `NN. Title.mp3` per chapter, ID3 tags: album, artist, title, track, cover |
 | `"m4b"`         | `M4bWriter` | an `.m4b` file, or a directory for `<title>.m4b` | one AAC file with a chapter marker per chapter, tags and cover            |
 
 M4B needs `ffmpeg`, checked before narration starts. Chapters are narrated
-into a temporary directory and joined at the end; `M4bWriter(bitrate="96k")`
-changes the AAC bitrate (64k by default).
+into a temporary directory and joined at the end, as 64 kbit/s AAC.
 
 Title, authors and cover come from the ebook; `metadata=BookMetadata(...)`
 overrides any of them, and the file name is the title of last resort.

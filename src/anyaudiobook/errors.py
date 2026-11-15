@@ -6,7 +6,7 @@ class AnyAudiobookError(Exception):
 
 
 class UnsupportedFormatError(AnyAudiobookError, ValueError):
-    """No reader or writer is registered for the requested format."""
+    """No reader or writer handles the requested format."""
 
 
 class UnreadableBookError(AnyAudiobookError):

@@ -5,8 +5,10 @@ from pathlib import Path
 import pymupdf
 import pytest
 
-from anyaudiobook import MatterKind, UnreadableBookError, read_book
-from anyaudiobook.readers import PdfReader
+from anyaudiobook.errors import UnreadableBookError
+from anyaudiobook.matter.models import MatterKind
+from anyaudiobook.readers.pdf import PdfReader
+from anyaudiobook.selection import read_book, select_chapters
 from tests.builders import PdfChapter, write_image_pdf, write_pdf
 
 LONG = " ".join(["The story goes on and on without end."] * 100)
@@ -98,7 +100,7 @@ def test_pdf_reader_outline_depth_and_unlisted_front_matter(tmp_path: Path) -> N
     chapters = [PdfChapter("Title Page", ["A Book"], in_outline=False), *CHAPTERS[1:3]]
     path = write_pdf(tmp_path / "book.pdf", chapters)
 
-    book = read_book(path, reader=PdfReader(outline_depth=1))
+    book = select_chapters(PdfReader(outline_depth=1).read(path))
 
     assert [(d.kind, d.title) for d in book.decisions] == [
         (MatterKind.TITLE_PAGE, "Title Page"),
@@ -118,7 +120,7 @@ def test_pdf_reader_uses_first_page_image_as_cover(tmp_path: Path) -> None:
     document.save(path)
 
     with_cover = read_book(path).metadata.cover
-    without = read_book(path, reader=PdfReader(cover=False)).metadata.cover
+    without = PdfReader(cover=False).read(path).metadata.cover
 
     assert with_cover is not None and with_cover.mime_type == "image/jpeg"
     assert with_cover.data[:2] == b"\xff\xd8"

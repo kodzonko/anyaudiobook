@@ -6,7 +6,9 @@ import pytest
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3
 
-from anyaudiobook import AnyAudiobookError, BookMetadata, CoverImage, Mp3Writer
+from anyaudiobook.errors import AnyAudiobookError
+from anyaudiobook.models import BookMetadata, CoverImage
+from anyaudiobook.writers.mp3 import Mp3Writer
 from tests.builders import FakeEngine
 from tests.conftest import ChapterFactory
 

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from anyaudiobook import BookMetadata, CoverImage
+from anyaudiobook.models import BookMetadata, CoverImage
 
 
 @pytest.mark.parametrize(

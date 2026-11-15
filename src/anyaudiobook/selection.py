@@ -9,15 +9,10 @@ from pathlib import Path
 from bs4 import Tag
 
 from anyaudiobook.markup import extract_text, remove_unspoken, single_line
-from anyaudiobook.matter import (
-    Decision,
-    FilterOptions,
-    MatterKind,
-    Verdict,
-    classify_documents,
-)
+from anyaudiobook.matter.classifier import classify_documents
+from anyaudiobook.matter.models import Decision, FilterOptions, MatterKind, Verdict
 from anyaudiobook.models import BookContent, BookMetadata, Document, SourceBook
-from anyaudiobook.readers import BookReader, read_source
+from anyaudiobook.readers import read_source
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,13 +64,13 @@ def select_chapters(
     """Pick the chapters to narrate from a book, explaining each choice.
 
     Front and back matter is recognised by
-    :func:`anyaudiobook.matter.classify_documents` and left out as
+    :func:`anyaudiobook.matter.classifier.classify_documents` and left out as
     ``options`` say; notes, note markers and page numbers are removed from
     the chapters that remain. Chapters without a number in their heading are
     numbered by their position among the narrated chapters.
 
     Args:
-        book: The book, as read by a :class:`anyaudiobook.readers.BookReader`.
+        book: The book, as read by a :class:`anyaudiobook.readers.base.BookReader`.
         options: What to narrate; defaults to :class:`FilterOptions`.
 
     Returns:
@@ -122,31 +117,17 @@ def select_chapters(
     return ParsedBook(chapters=chapters, decisions=decisions, metadata=book.metadata)
 
 
-def read_book(
-    path: str | Path,
-    options: FilterOptions | None = None,
-    reader: BookReader | None = None,
-) -> ParsedBook:
+def read_book(path: str | Path, options: FilterOptions | None = None) -> ParsedBook:
     """Read an ebook of any supported format and pick the chapters to narrate.
 
     Args:
         path: The ebook file.
         options: What to narrate; defaults to :class:`FilterOptions`.
-        reader: The reader to use; chosen by file extension when None.
 
     Returns:
         See :func:`select_chapters`.
     """
-    return select_chapters(read_source(path, reader), options)
-
-
-def read_chapters(
-    path: str | Path,
-    options: FilterOptions | None = None,
-    reader: BookReader | None = None,
-) -> list[BookContent]:
-    """Read an ebook and return the chapters to narrate, see :func:`read_book`."""
-    return read_book(path, options, reader).chapters
+    return select_chapters(read_source(path), options)
 
 
 def narration_text(document: Document, options: FilterOptions) -> str:

@@ -7,8 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from anyaudiobook import MissingToolError, read_book
-from anyaudiobook.readers import DocReader
+from anyaudiobook.errors import MissingToolError
+from anyaudiobook.readers.doc import DocReader
+from anyaudiobook.selection import read_book
 from tests.builders import Para, write_docx
 
 LONG = " ".join(["The story goes on."] * 60)

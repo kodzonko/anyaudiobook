@@ -8,15 +8,10 @@ from pathlib import Path
 import pytest
 from mutagen.mp4 import MP4, MP4Cover
 
-from anyaudiobook import (
-    AnyAudiobookError,
-    BookMetadata,
-    CoverImage,
-    M4bWriter,
-    MissingToolError,
-)
-from anyaudiobook.writers import Track
-from anyaudiobook.writers.m4b import duration, ffmetadata, m4b_path
+from anyaudiobook.errors import AnyAudiobookError, MissingToolError
+from anyaudiobook.models import BookMetadata, CoverImage
+from anyaudiobook.writers.base import Track
+from anyaudiobook.writers.m4b import M4bWriter, duration, ffmetadata, m4b_path
 from tests.builders import FakeEngine, silent_mp3
 from tests.conftest import ChapterFactory
 

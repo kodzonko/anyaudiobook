@@ -12,7 +12,6 @@ from typing import ClassVar, Protocol
 
 import anyio
 import edge_tts
-from edge_tts.typing import Voice
 
 from anyaudiobook.filenames import chapter_filename
 from anyaudiobook.models import BookContent
@@ -40,8 +39,8 @@ class EdgeTTS:
     """Microsoft Edge's online text-to-speech voices; writes MP3 files.
 
     Args:
-        voice: Voice short name, e.g. ``en-US-BrianNeural``; see
-            :func:`get_available_voices`.
+        voice: Voice short name, e.g. ``en-US-BrianNeural``; list them with
+            ``uv run edge-tts --list-voices``.
         pitch: Pitch adjustment, e.g. ``-10Hz``.
         rate: Speed adjustment, e.g. ``+10%``.
         volume: Volume adjustment, e.g. ``-20%``.
@@ -59,11 +58,6 @@ class EdgeTTS:
             text, self.voice, pitch=self.pitch, rate=self.rate, volume=self.volume
         )
         await communicate.save(str(output_path))
-
-
-async def get_available_voices() -> list[Voice]:
-    """Return the voices the Edge TTS service offers."""
-    return await edge_tts.list_voices()
 
 
 async def synthesize_chapters(

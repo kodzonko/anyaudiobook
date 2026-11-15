@@ -7,16 +7,12 @@ import pytest
 from bs4 import BeautifulSoup, Tag
 from ebooklib import epub
 
-from anyaudiobook import UnreadableBookError
-from anyaudiobook.matter import (
-    DEFAULT_SKIP,
-    FilterOptions,
-    MatterKind,
-    classify_documents,
-)
+from anyaudiobook.errors import UnreadableBookError
+from anyaudiobook.matter.classifier import classify_documents
+from anyaudiobook.matter.models import DEFAULT_SKIP, FilterOptions, MatterKind
 from anyaudiobook.models import Reference
 from anyaudiobook.readers.epub import load_documents
-from anyaudiobook.selection import parse_heading, read_book, read_chapters
+from anyaudiobook.selection import parse_heading, read_book
 from tests.conftest import EpubFactory, Page
 
 LONG = " ".join(["word"] * 200)
@@ -66,10 +62,10 @@ def test_parse_heading_without_heading_uses_fallback_title() -> None:
     assert parse_heading(None, "fallback.xhtml") == (None, "fallback.xhtml")
 
 
-def test_read_chapters_from_real_epub_skips_fluff_and_empty_pages(
+def test_read_book_from_real_epub_skips_fluff_and_empty_pages(
     epub_file: Path,
 ) -> None:
-    chapters = read_chapters(epub_file)
+    chapters = read_book(epub_file).chapters
 
     assert [(c.chapter_number, c.title) for c in chapters] == [
         (1, "Beginning"),
@@ -107,7 +103,7 @@ def test_read_book_follows_spine_not_manifest_order(make_epub: EpubFactory) -> N
         spine=["a.xhtml", "b.xhtml"],
     )
 
-    assert [c.title for c in read_chapters(path)] == ["First", "Second"]
+    assert [c.title for c in read_book(path).chapters] == ["First", "Second"]
 
 
 def test_read_book_skips_navigation_document_in_spine(make_epub: EpubFactory) -> None:
@@ -127,7 +123,7 @@ def test_read_book_skips_navigation_document_in_spine(make_epub: EpubFactory) ->
 def test_read_book_titles_headingless_page_from_toc(make_epub: EpubFactory) -> None:
     path = make_epub([Page("ch1.xhtml", f"<p>{LONG}</p>", toc="Rozdział pierwszy")])
 
-    assert [c.title for c in read_chapters(path)] == ["Rozdział pierwszy"]
+    assert [c.title for c in read_book(path).chapters] == ["Rozdział pierwszy"]
 
 
 def test_read_book_skips_pages_from_guide_and_non_linear_spine(
@@ -162,12 +158,12 @@ def test_read_book_honours_bodymatter_landmark(make_epub: EpubFactory) -> None:
     ]
     guide = [{"href": "ch1.xhtml", "title": "Start", "type": "text"}]
 
-    assert [c.title for c in read_chapters(make_epub(pages))] == [
+    assert [c.title for c in read_book(make_epub(pages)).chapters] == [
         "Preface",
         "motto.xhtml",
         "One",
     ]
-    assert [c.title for c in read_chapters(make_epub(pages, guide=guide))] == [
+    assert [c.title for c in read_book(make_epub(pages, guide=guide)).chapters] == [
         "Preface",
         "One",
     ]
@@ -187,7 +183,7 @@ def test_read_book_narrates_body_only_without_note_markers(
         ]
     )
 
-    content = read_chapters(path)[0].content
+    content = read_book(path).chapters[0].content
 
     assert content.startswith("One\nThe war ended. word")
     assert "footnote" not in content
@@ -227,7 +223,7 @@ def dedicated_book(make_epub: EpubFactory) -> Path:
 def test_read_book_applies_filter_options(
     dedicated_book: Path, options: FilterOptions, titles: list[str]
 ) -> None:
-    assert [c.title for c in read_chapters(dedicated_book, options)] == titles
+    assert [c.title for c in read_book(dedicated_book, options).chapters] == titles
 
 
 def test_read_book_explains_overrides(dedicated_book: Path) -> None:

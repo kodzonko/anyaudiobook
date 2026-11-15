@@ -1,6 +1,6 @@
 """Tests for the narrate/skip report."""
 
-from anyaudiobook.matter import Decision, MatterKind
+from anyaudiobook.matter.models import Decision, MatterKind
 from anyaudiobook.report import format_report
 
 

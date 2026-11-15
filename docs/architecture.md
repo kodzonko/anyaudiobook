@@ -1,6 +1,7 @@
 # Architecture
 
-A conversion is a pipeline of four steps. Each step is a small interface with
+ANYaudiobook is a script (`main.py`), not a library: the package under
+`src/anyaudiobook/` has no public API to keep stable. A conversion is a pipeline of four steps. Each step is a small interface with
 interchangeable implementations, so a new format touches one step only.
 
 ```text
@@ -21,10 +22,10 @@ and back matter (`matter/`) and cleaning up notes (`markup.py`) to choosing
 chapters (`selection.py`), only sees this form. That is what keeps filtering
 written once for all formats.
 
-## Reading (`readers/`) — Strategy, Registry, Template Method
+## Reading (`readers/`) — Strategy, Template Method
 
 - `BookReader` is the interface: `read(path) -> SourceBook`.
-- `READERS` (a `Registry`, `registry.py`) maps file extensions to readers.
+- `READERS` (`readers/__init__.py`) maps file extensions to readers.
 - `HtmlBookReader` is a template for every format that converts to one long
   HTML document. Its `read()` runs the shared steps, and subclasses only
   implement `load()` (and may refine `prepare()` and `section_name()`):
@@ -47,11 +48,12 @@ written once for all formats.
 
 ### Adding an input format
 
+Write the reader in `readers/` and add it to the tuple building `READERS`:
+
 ```python
 from pathlib import Path
 
-from anyaudiobook import READERS, HtmlBookReader
-from anyaudiobook.readers import HtmlSource
+from anyaudiobook.readers.base import HtmlBookReader, HtmlSource
 
 
 class Fb2Reader(HtmlBookReader):
@@ -59,9 +61,6 @@ class Fb2Reader(HtmlBookReader):
 
     def load(self, path: Path) -> HtmlSource:
         return HtmlSource(fb2_to_html(path.read_bytes()))
-
-
-READERS.register(Fb2Reader, *Fb2Reader.suffixes)
 ```
 
 Produce HTML with `<h1>`/`<h2>` headings (or `data-toc-label` attributes
@@ -74,19 +73,21 @@ where TOC entries start) and the rest is shared.
 one; `synthesize_chapters()` runs any engine concurrently. Tests use a fake
 engine writing silent MP3s instead of patching Edge TTS.
 
-## Packaging (`writers/`) — Strategy, Registry, Template Method
+## Packaging (`writers/`) — Strategy, Template Method
 
 `AudiobookWriter.write()` is a template: `check()` the tools needed (before
 hours of narration), narrate into `work_dir()`, then `package()` the files.
 `Mp3Writer` narrates into the output directory and writes ID3 tags;
 `M4bWriter` narrates into a temporary directory, joins the files with ffmpeg
 (chapter markers from each file's duration) and tags the result with
-mutagen. `WRITERS` maps format names to writers.
+mutagen. `WRITERS` (`writers/__init__.py`) maps format names to writers.
 
 ### Adding an output format
 
+Write the writer in `writers/` and add it to the tuple building `WRITERS`:
+
 ```python
-from anyaudiobook import WRITERS, AudiobookWriter
+from anyaudiobook.writers.base import AudiobookWriter
 
 
 class OpusWriter(AudiobookWriter):
@@ -94,9 +95,6 @@ class OpusWriter(AudiobookWriter):
 
     def work_dir(self, output): ...
     def package(self, tracks, metadata, output): ...
-
-
-WRITERS.register(OpusWriter, OpusWriter.format_name)
 ```
 
 ## Errors (`errors.py`)

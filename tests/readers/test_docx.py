@@ -4,7 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from anyaudiobook import MatterKind, UnreadableBookError, read_book
+from anyaudiobook.errors import UnreadableBookError
+from anyaudiobook.matter.models import MatterKind
+from anyaudiobook.selection import read_book
 from tests.builders import Para, write_docx
 
 LONG = " ".join(["The story goes on."] * 60)

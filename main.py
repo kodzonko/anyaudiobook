@@ -5,13 +5,10 @@ Edit the settings below, then run ``uv run python main.py``.
 
 from pathlib import Path
 
-from anyaudiobook import (
-    DEFAULT_SKIP,
-    AudiobookConverter,
-    BookMetadata,
-    EdgeTTS,
-    FilterOptions,
-)
+from anyaudiobook.converter import AudiobookConverter
+from anyaudiobook.matter.models import DEFAULT_SKIP, FilterOptions
+from anyaudiobook.models import BookMetadata
+from anyaudiobook.tts import EdgeTTS
 
 # Any supported ebook: .epub, .pdf, .docx, .doc, .rtf, .odt, .mobi, .azw,
 # .azw3, .txt, .html (see docs/formats.md).
@@ -21,11 +18,12 @@ SOURCE = Path(r"C:\Users\username\path\to\ebook.epub")
 # the .m4b file or a directory to put "<title>.m4b" in.
 OUTPUT_FORMAT = "mp3"
 OUTPUT = Path(r"C:\Users\username\path\to\output_dir")
+# List the voices with `uv run edge-tts --list-voices`.
 VOICE = EdgeTTS("pl-PL-ZofiaNeural", pitch="-10Hz")
 CONCURRENT_CHAPTERS = 5
 
 # Title, authors and cover are read from the ebook; set any of them here to
-# override it.
+# override it (CoverImage is in anyaudiobook.models).
 METADATA = BookMetadata(
     title=None,  # e.g. "Lorem ipsum"
     authors=(),  # e.g. ("Jane Doe",)
@@ -33,8 +31,8 @@ METADATA = BookMetadata(
 )
 
 # Front and back matter to leave out (see docs/filtering.md). For example,
-# DEFAULT_SKIP - {MatterKind.DEDICATION} (MatterKind is in anyaudiobook) also
-# narrates the dedication.
+# DEFAULT_SKIP - {MatterKind.DEDICATION} (MatterKind is in
+# anyaudiobook.matter.models) also narrates the dedication.
 FILTER = FilterOptions(
     skip=DEFAULT_SKIP,
     include=(),  # regexes on file name or title to always narrate

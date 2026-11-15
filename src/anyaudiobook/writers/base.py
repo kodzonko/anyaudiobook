@@ -33,7 +33,7 @@ class AudiobookWriter(ABC):
     """
 
     format_name: ClassVar[str]
-    """The name the format is registered under, e.g. ``m4b``."""
+    """The format's ``OUTPUT_FORMAT`` name in ``main.py``, e.g. ``m4b``."""
 
     def write(
         self,

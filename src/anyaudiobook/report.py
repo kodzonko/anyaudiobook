@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 
-from anyaudiobook.matter import Decision
+from anyaudiobook.matter.models import Decision
 
 _TITLE_WIDTH = 36
 _FILE_WIDTH = 28

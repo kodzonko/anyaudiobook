@@ -11,16 +11,10 @@ import pytest
 from mutagen.easyid3 import EasyID3
 from mutagen.mp4 import MP4
 
-from anyaudiobook import (
-    DEFAULT_SKIP,
-    AudiobookConverter,
-    BookMetadata,
-    CoverImage,
-    FilterOptions,
-    M4bWriter,
-    MatterKind,
-    UnsupportedFormatError,
-)
+from anyaudiobook.converter import AudiobookConverter
+from anyaudiobook.errors import UnsupportedFormatError
+from anyaudiobook.matter.models import DEFAULT_SKIP, FilterOptions, MatterKind
+from anyaudiobook.models import BookMetadata, CoverImage
 from tests.builders import FakeEngine, Para, PdfChapter, write_docx, write_pdf
 from tests.conftest import FIXTURES
 
@@ -198,14 +192,6 @@ def test_converter_metadata_prefers_overrides_then_book_then_file_name(
     assert custom.cover == CoverImage(b"png", "image/png")
 
 
-def test_converter_accepts_configured_writer_and_rejects_unknown_formats(
-    epub_file: Path,
-) -> None:
-    writer = M4bWriter(bitrate="96k")
-
-    assert (
-        AudiobookConverter(epub_file, "x", FakeEngine(), output_format=writer).writer
-        is writer
-    )
+def test_converter_rejects_unknown_output_formats(epub_file: Path) -> None:
     with pytest.raises(UnsupportedFormatError, match="ogg"):
         AudiobookConverter(epub_file, "x", FakeEngine(), output_format="ogg")

@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import anyio
 import pytest
@@ -47,12 +47,6 @@ class RecordingCommunicate:
     async def save(self, path: str) -> None:
         """Write the text instead of audio."""
         Path(path).write_text(self.text)
-
-
-async def test_get_available_voices_delegates_to_edge_tts() -> None:
-    voices = [MagicMock()]
-    with patch.object(tts.edge_tts, "list_voices", AsyncMock(return_value=voices)):
-        assert await tts.get_available_voices() == voices
 
 
 async def test_edge_tts_passes_voice_settings(tmp_path: Path) -> None:

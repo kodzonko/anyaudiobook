@@ -4,13 +4,9 @@ from dataclasses import replace
 
 import pytest
 
-from anyaudiobook.matter import (
-    Document,
-    FilterOptions,
-    MatterKind,
-    Reference,
-    classify_documents,
-)
+from anyaudiobook.matter.classifier import classify_documents
+from anyaudiobook.matter.models import FilterOptions, MatterKind
+from anyaudiobook.models import Document, Reference
 from tests.matter.conftest import LONG_TEXT, DocumentFactory
 
 K = MatterKind

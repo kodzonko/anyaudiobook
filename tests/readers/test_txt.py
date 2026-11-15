@@ -4,8 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from anyaudiobook import MatterKind, read_book
+from anyaudiobook.matter.models import MatterKind
 from anyaudiobook.readers.txt import decode_text, paragraphs, strip_gutenberg
+from anyaudiobook.selection import read_book
 
 WRAPPED = """\
 It was a dark and stormy night; the rain fell in torrents, except at

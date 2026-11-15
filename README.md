@@ -1,6 +1,6 @@
 # ANYaudiobook
 
-<img src="docs/assets/logo.png" alt="anyaudiobook — an open book with pages shaped like sound waves" width="640">
+<img src="assets/logo.png" alt="anyaudiobook — an open book with pages shaped like sound waves" width="640">
 
 A Python tool to convert ebooks to audiobooks using Microsoft Edge's Text-to-Speech engine.
 
@@ -29,8 +29,6 @@ project commands with `mise exec --` (for example, `mise exec -- uv --version`).
 - Dry-run report of what will be narrated or skipped, and why
 - Processes multiple chapters concurrently for faster conversion
 - Supports every Microsoft Edge TTS voice, with pitch, rate and volume
-- New input and output formats plug in without touching the rest, see
-  [docs/architecture.md](docs/architecture.md)
 
 ## How It Works
 
@@ -52,38 +50,10 @@ uv run python main.py
 It prints which parts of the book it will narrate or skip and why, then
 narrates each chapter. Set `DRY_RUN = True` to stop after the report.
 
-### As a library
+To list the voices you can set as `VOICE`:
 
-```python
-from anyaudiobook import (
-    DEFAULT_SKIP,
-    AudiobookConverter,
-    BookMetadata,
-    EdgeTTS,
-    FilterOptions,
-    MatterKind,
-)
-
-converter = AudiobookConverter(
-    "path/to/your/ebook.pdf",  # or .epub, .docx, .mobi, .azw3, .txt, ...
-    "output_directory",
-    EdgeTTS("en-US-BrianNeural"),  # English (US) male voice
-    output_format="m4b",  # or "mp3" for one file per chapter
-    filter_options=FilterOptions(skip=DEFAULT_SKIP - {MatterKind.DEDICATION}),
-    metadata=BookMetadata(authors=("Author Name",)),  # overrides the ebook's own
-)
-print(converter.report())  # what is narrated or skipped, and why
-converter.convert(concurrency=10)
-```
-
-### Available voices
-
-```python
-import anyio
-from anyaudiobook import get_available_voices
-
-voices = anyio.run(get_available_voices)
-print(voices)
+```sh
+uv run edge-tts --list-voices
 ```
 
 ## Development
@@ -94,6 +64,9 @@ uv run ruff check --fix
 uv format
 uv run ty check
 ```
+
+How the code is organised, and how to add a format, is in
+[docs/architecture.md](docs/architecture.md).
 
 ## Requirements
 

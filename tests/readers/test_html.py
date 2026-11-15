@@ -2,7 +2,9 @@
 
 from pathlib import Path
 
-from anyaudiobook import MatterKind, read_book, read_source
+from anyaudiobook.matter.models import MatterKind
+from anyaudiobook.readers import read_source
+from anyaudiobook.selection import read_book
 
 LONG = " ".join(["word"] * 200)
 
