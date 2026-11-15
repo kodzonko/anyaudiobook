@@ -9,7 +9,6 @@ dependencies = [
     "beautifulsoup4==4.15.0",
     "ebooklib==0.21",
     "edge-tts==7.3.1",
-    "marimo==0.25.2",
     "mutagen==1.48.1",
     "pydantic==2.14.3"
 ]
