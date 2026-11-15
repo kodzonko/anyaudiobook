@@ -20,6 +20,10 @@ project commands with `mise exec --` (for example, `mise exec -- uv --version`).
 
 - Convert any ebook (currently only .epub) to .mp3 audiobook chapters
 - Extract chapter titles and content automatically
+- Skip front and back matter (table of contents, copyright, notes, index,
+  acknowledgments, ads, ...) and strip footnote markers from the narration,
+  see [docs/filtering.md](docs/filtering.md)
+- Dry-run report of what will be narrated or skipped, and why
 - Process multiple chapters concurrently for faster conversion
 - Organize output files with proper sequential numbering
 - Support for multiple Microsoft Edge TTS voices
@@ -27,31 +31,41 @@ project commands with `mise exec --` (for example, `mise exec -- uv --version`).
 
 ## How It Works
 
-ANYaudiobook parses ebook files, extracts the text content chapter by chapter, and uses Edge TTS to generate natural-sounding audio files. The tool intelligently handles chapter titles, removes unnecessary elements like scripts and styles, and processes the content in parallel to speed up conversion.
+ANYaudiobook parses ebook files, extracts the text content chapter by chapter, and uses Edge TTS to generate natural-sounding audio files. It recognises front and back matter from the EPUB's own markup, the shape of each page and its position in the book, leaves it out, and processes the remaining chapters in parallel to speed up conversion.
 
 ## Usage
 
 Edit the settings at the top of `main.py` (EPUB path, output directory, voice,
-author, book title, cover image), then run:
+author, book title, cover image, what to skip), then run:
 
 ```sh
 uv run python main.py
 ```
 
-It splits the EPUB into chapters, narrates each one into `NN. Title.mp3`, then
-writes ID3 tags (artist, album, title, track number, cover art) to every file.
+It splits the EPUB into chapters, prints which documents it will narrate or
+skip and why, narrates each chapter into `NN. Title.mp3`, then writes ID3 tags
+(artist, album, title, track number, cover art) to every file. Set
+`DRY_RUN = True` to stop after the report.
 
 ### As a library
 
 ```python
-from anyaudiobook import EpubToAudiobookConverter, tag_chapters
+from anyaudiobook import (
+    DEFAULT_SKIP,
+    EpubToAudiobookConverter,
+    FilterOptions,
+    MatterKind,
+    tag_chapters,
+)
 
 converter = EpubToAudiobookConverter(
     "path/to/your/ebook.epub",
     "output_directory",
     "en-US-BrianNeural",  # English (US) male voice
+    filter_options=FilterOptions(skip=DEFAULT_SKIP - {MatterKind.DEDICATION}),
 )
 converter.chunk_epub()  # extract chapters
+print(converter.report())  # what is narrated or skipped, and why
 converter.generate_audiobook(number_of_concurrent_tasks=10)
 tag_chapters("output_directory", "Author Name", "Book Title", "cover.jpg")
 ```
