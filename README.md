@@ -65,6 +65,7 @@ uv run pytest  # includes a coverage report; fails below 90%
 uv run ruff check --fix
 uv format
 uv run ty check
+uv run pytest -m performance --no-cov  # benchmarks, see docs/performance.md
 ```
 
 How the code is organised, and how to add a format, is in
