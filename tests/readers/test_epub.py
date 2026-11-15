@@ -1,24 +1,22 @@
-"""Tests for EPUB chapter extraction."""
+"""Tests for EPUB reading and chapter selection, on real EPUB files."""
 
+import zipfile
 from pathlib import Path
 
 import pytest
 from bs4 import BeautifulSoup, Tag
 from ebooklib import epub
 
-from anyaudiobook.epub_parser import (
-    load_documents,
-    parse_heading,
-    read_book,
-    read_chapters,
-)
+from anyaudiobook import UnreadableBookError
 from anyaudiobook.matter import (
     DEFAULT_SKIP,
     FilterOptions,
     MatterKind,
-    Reference,
     classify_documents,
 )
+from anyaudiobook.models import Reference
+from anyaudiobook.readers.epub import load_documents
+from anyaudiobook.selection import parse_heading, read_book, read_chapters
 from tests.conftest import EpubFactory, Page
 
 LONG = " ".join(["word"] * 200)
@@ -310,3 +308,80 @@ def test_load_documents_collects_toc_labels_and_landmarks() -> None:
         Reference("index", partial=True),
         Reference("index"),
     }
+
+
+def _epub_with_metadata(path: Path, *, epub3_cover: bool) -> Path:
+    """Write an EPUB with Dublin Core metadata and a cover image."""
+    book = epub.EpubBook()
+    book.set_identifier("meta")
+    book.set_title("Tytuł")
+    book.set_language("pl")
+    book.add_author("Jan Kowalski")
+    book.add_author("Anna Nowak")
+    if epub3_cover:
+        book.set_cover("cover.png", b"\x89PNG data", create_page=False)
+    else:
+        image = epub.EpubImage(
+            uid="cover-id", file_name="cover.jpg", media_type="image/jpeg"
+        )
+        image.content = b"\xff\xd8 data"
+        book.add_item(image)
+        book.add_metadata(None, "meta", "", {"name": "cover", "content": "cover-id"})
+    chapter = epub.EpubHtml(title="One", file_name="ch1.xhtml")
+    chapter.content = f"<html><body><h1>One</h1><p>{LONG}</p></body></html>"
+    book.add_item(chapter)
+    book.spine = [chapter]
+    book.add_item(epub.EpubNcx())
+    epub.write_epub(str(path), book)
+    return path
+
+
+@pytest.mark.parametrize(
+    ("epub3_cover", "cover"),
+    [(True, (b"\x89PNG data", "image/png")), (False, (b"\xff\xd8 data", "image/jpeg"))],
+)
+def test_read_book_reads_epub_metadata_and_cover(
+    tmp_path: Path, epub3_cover: bool, cover: tuple[bytes, str]
+) -> None:
+    path = _epub_with_metadata(tmp_path / "meta.epub", epub3_cover=epub3_cover)
+
+    metadata = read_book(path).metadata
+
+    assert metadata.title == "Tytuł"
+    assert metadata.authors == ("Jan Kowalski", "Anna Nowak")
+    assert metadata.language == "pl"
+    assert metadata.cover is not None
+    assert (metadata.cover.data, metadata.cover.mime_type) == cover
+
+
+def _add_encryption(path: Path, uri: str) -> Path:
+    """Add an ``encryption.xml`` encrypting ``uri`` to an EPUB."""
+    with zipfile.ZipFile(path, "a") as archive:
+        archive.writestr(
+            "META-INF/encryption.xml",
+            '<encryption xmlns="urn:oasis:names:tc:opendocument:xmlns:container">'
+            "<EncryptedData><CipherData>"
+            f'<CipherReference URI="{uri}"/></CipherData></EncryptedData></encryption>',
+        )
+    return path
+
+
+def test_read_book_rejects_drm_protected_epub(epub_file: Path) -> None:
+    _add_encryption(epub_file, "EPUB/intro.xhtml")
+
+    with pytest.raises(UnreadableBookError, match="DRM"):
+        read_book(epub_file)
+
+
+def test_read_book_accepts_epub_with_obfuscated_fonts(epub_file: Path) -> None:
+    _add_encryption(epub_file, "EPUB/fonts/serif.otf")
+
+    assert [c.title for c in read_book(epub_file).chapters] == ["Beginning", "The End"]
+
+
+def test_read_book_rejects_broken_epub(tmp_path: Path) -> None:
+    path = tmp_path / "broken.epub"
+    path.write_bytes(b"not a zip")
+
+    with pytest.raises(UnreadableBookError, match="broken.epub"):
+        read_book(path)

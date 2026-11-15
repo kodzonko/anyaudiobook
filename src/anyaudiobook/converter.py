@@ -1,72 +1,128 @@
-"""High-level EPUB to audiobook conversion."""
+"""High-level ebook to audiobook conversion."""
 
 from pathlib import Path
 
-import anyio
-
-from anyaudiobook.epub_parser import read_book
 from anyaudiobook.matter import Decision, FilterOptions
-from anyaudiobook.models import BookContent
+from anyaudiobook.models import BookContent, BookMetadata
+from anyaudiobook.readers import BookReader
 from anyaudiobook.report import format_report
-from anyaudiobook.tts import synthesize_chapters
+from anyaudiobook.selection import ParsedBook, read_book
+from anyaudiobook.tts import SpeechEngine
+from anyaudiobook.writers import AudiobookWriter, writer_for
 
 
-class EpubToAudiobookConverter:
-    """Convert an EPUB file into one MP3 file per chapter."""
+class AudiobookConverter:
+    """Convert an ebook of any supported format into an audiobook.
+
+    One object runs the whole pipeline, each step replaceable:
+
+    1. **read** the ebook with the :class:`BookReader` for its extension,
+    2. **select** the chapters, skipping front and back matter as
+       :class:`FilterOptions` say,
+    3. **narrate** them with a :class:`SpeechEngine`,
+    4. **package** the audio with the :class:`AudiobookWriter` of the output
+       format (one MP3 per chapter, or one M4B with chapter markers).
+
+    Example::
+
+        converter = AudiobookConverter(
+            "book.pdf", "out", EdgeTTS("en-US-BrianNeural"), output_format="m4b"
+        )
+        print(converter.report())
+        converter.convert()
+    """
 
     def __init__(
         self,
-        epub_path: str | Path,
-        output_dir: str | Path,
-        voice: str,
-        pitch: str = "+0Hz",
+        source: str | Path,
+        output: str | Path,
+        engine: SpeechEngine,
+        *,
+        output_format: str | AudiobookWriter = "mp3",
         filter_options: FilterOptions | None = None,
+        reader: BookReader | None = None,
+        metadata: BookMetadata | None = None,
     ) -> None:
         """Set up a conversion.
 
         Args:
-            epub_path: Path to the EPUB file.
-            output_dir: Directory for the MP3 files.
-            voice: Edge TTS voice short name, e.g. ``en-US-BrianNeural``.
-            pitch: Pitch adjustment, e.g. ``-10Hz``.
-            filter_options: Which front and back matter to skip; defaults to
-                :class:`FilterOptions`.
+            source: The ebook file.
+            output: Where to write: a directory for MP3 chapters; an
+                ``.m4b`` file, or a directory to put one in, for M4B.
+            engine: The speech engine, e.g. ``EdgeTTS("en-US-BrianNeural")``.
+            output_format: A registered format name (``mp3``, ``m4b``) or a
+                configured writer such as ``M4bWriter(bitrate="96k")``.
+            filter_options: What to narrate; defaults to :class:`FilterOptions`.
+            reader: The reader to use; chosen by file extension when None.
+            metadata: Title, authors and cover overriding what the ebook
+                says about itself; unset fields keep the ebook's values.
+
+        Raises:
+            UnsupportedFormatError: If ``output_format`` is not registered.
         """
-        self.epub_path = Path(epub_path)
-        self.audiobook_path = Path(output_dir)
-        self.voice = voice
-        self.pitch = pitch
+        self.source = Path(source)
+        self.output = Path(output)
+        self.engine = engine
+        self.writer = (
+            writer_for(output_format)
+            if isinstance(output_format, str)
+            else output_format
+        )
         self.filter_options = filter_options or FilterOptions()
-        self.chunked_content: list[BookContent] = []
-        self.decisions: list[Decision] = []
+        self.reader = reader
+        self.metadata_overrides = metadata
+        self._book: ParsedBook | None = None
 
-    def chunk_epub(self) -> None:
-        """Split the EPUB into chapters, stored in ``chunked_content``.
+    def read(self) -> ParsedBook:
+        """Read the ebook and choose the chapters to narrate.
 
-        What was kept or skipped, and why, is stored in ``decisions``.
+        Called by the other methods when needed; call it yourself to read
+        again after changing :attr:`filter_options`.
         """
-        book = read_book(self.epub_path, self.filter_options)
-        self.chunked_content = book.chapters
-        self.decisions = book.decisions
+        self._book = read_book(self.source, self.filter_options, self.reader)
+        return self._book
+
+    @property
+    def book(self) -> ParsedBook:
+        """The ebook as read by :meth:`read`."""
+        return self._book or self.read()
+
+    @property
+    def chapters(self) -> list[BookContent]:
+        """The chapters that will be narrated."""
+        return self.book.chapters
+
+    @property
+    def decisions(self) -> list[Decision]:
+        """What is narrated or skipped, and why: one entry per document."""
+        return self.book.decisions
+
+    @property
+    def metadata(self) -> BookMetadata:
+        """The metadata the audio is tagged with.
+
+        The user's overrides win over the ebook's own metadata, which wins
+        over the file name as the title.
+        """
+        return (
+            BookMetadata(title=self.source.stem)
+            .updated(self.book.metadata)
+            .updated(self.metadata_overrides)
+        )
 
     def report(self) -> str:
-        """Return a table of what :meth:`chunk_epub` will narrate and skip."""
+        """Return a table of what will be narrated and skipped, and why."""
         return format_report(self.decisions)
 
-    def generate_audiobook(self, number_of_concurrent_tasks: int = 10) -> list[Path]:
-        """Narrate the chunked chapters into MP3 files.
+    def convert(self, concurrency: int = 10) -> list[Path]:
+        """Narrate the chapters and write the audiobook.
 
         Args:
-            number_of_concurrent_tasks: Most chapters narrated at the same time.
+            concurrency: Most chapters narrated at the same time.
 
         Returns:
-            The paths of the written files.
+            The files written.
         """
-        return anyio.run(
-            synthesize_chapters,
-            self.chunked_content,
-            self.audiobook_path,
-            self.voice,
-            self.pitch,
-            number_of_concurrent_tasks,
+        return self.writer.write(
+            self.chapters, self.metadata, self.output, self.engine, concurrency
         )

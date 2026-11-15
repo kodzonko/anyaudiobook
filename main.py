@@ -1,4 +1,4 @@
-"""Entry point: convert an EPUB into a tagged MP3 audiobook.
+"""Entry point: convert an ebook into a tagged audiobook.
 
 Edit the settings below, then run ``uv run python main.py``.
 """
@@ -7,20 +7,30 @@ from pathlib import Path
 
 from anyaudiobook import (
     DEFAULT_SKIP,
-    EpubToAudiobookConverter,
+    AudiobookConverter,
+    BookMetadata,
+    EdgeTTS,
     FilterOptions,
-    tag_chapters,
 )
 
-EPUB_PATH = Path(r"C:\Users\username\path\to\ebook.epub")
-OUTPUT_DIR = Path(r"C:\Users\username\path\to\output_dir")
-VOICE = "pl-PL-ZofiaNeural"
-PITCH = "-10Hz"
+# Any supported ebook: .epub, .pdf, .docx, .doc, .rtf, .odt, .mobi, .azw,
+# .azw3, .txt, .html (see docs/formats.md).
+SOURCE = Path(r"C:\Users\username\path\to\ebook.epub")
+# "mp3": one file per chapter in the OUTPUT directory.
+# "m4b": one audiobook file with chapter markers (needs ffmpeg); OUTPUT may be
+# the .m4b file or a directory to put "<title>.m4b" in.
+OUTPUT_FORMAT = "mp3"
+OUTPUT = Path(r"C:\Users\username\path\to\output_dir")
+VOICE = EdgeTTS("pl-PL-ZofiaNeural", pitch="-10Hz")
 CONCURRENT_CHAPTERS = 5
 
-AUTHOR = "Jane Doe"
-BOOK_TITLE = "Lorem ipsum"
-COVER_IMAGE: Path | None = Path(r"C:\Users\username\path\to\image.jpg")
+# Title, authors and cover are read from the ebook; set any of them here to
+# override it.
+METADATA = BookMetadata(
+    title=None,  # e.g. "Lorem ipsum"
+    authors=(),  # e.g. ("Jane Doe",)
+    cover=None,  # e.g. CoverImage.from_file(r"C:\path\to\cover.jpg")
+)
 
 # Front and back matter to leave out (see docs/filtering.md). For example,
 # DEFAULT_SKIP - {MatterKind.DEDICATION} (MatterKind is in anyaudiobook) also
@@ -34,14 +44,20 @@ DRY_RUN = False  # True: only print what would be narrated and skipped
 
 
 def main() -> None:
-    """Convert the configured EPUB to MP3 chapters, then tag them."""
-    converter = EpubToAudiobookConverter(EPUB_PATH, OUTPUT_DIR, VOICE, PITCH, FILTER)
-    converter.chunk_epub()
+    """Convert the configured ebook into an audiobook."""
+    converter = AudiobookConverter(
+        SOURCE,
+        OUTPUT,
+        VOICE,
+        output_format=OUTPUT_FORMAT,
+        filter_options=FILTER,
+        metadata=METADATA,
+    )
     print(converter.report())
     if DRY_RUN:
         return
-    converter.generate_audiobook(CONCURRENT_CHAPTERS)
-    tag_chapters(OUTPUT_DIR, AUTHOR, BOOK_TITLE, COVER_IMAGE)
+    for path in converter.convert(CONCURRENT_CHAPTERS):
+        print(f"Wrote {path}")
 
 
 if __name__ == "__main__":

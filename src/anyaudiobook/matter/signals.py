@@ -32,7 +32,8 @@ from anyaudiobook.matter.keywords import (
     fold,
     normalize,
 )
-from anyaudiobook.matter.models import Document, MatterKind, Verdict
+from anyaudiobook.matter.models import MatterKind, Verdict
+from anyaudiobook.models import Document
 
 COVERAGE = 0.5
 """Share of a document's text an element must hold to speak for all of it."""

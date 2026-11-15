@@ -7,6 +7,7 @@ from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3
 
 from anyaudiobook.metadata import add_metadata, tag_chapters
+from anyaudiobook.models import CoverImage
 
 
 def _blank_mp3(path: Path) -> Path:
@@ -71,3 +72,11 @@ def test_tag_chapters_rejects_unnumbered_files(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="bonus"):
         tag_chapters(tmp_path, "Jane Doe", "Book")
+
+
+def test_add_metadata_replaces_cover_when_retagging(mp3_file: Path) -> None:
+    add_metadata(mp3_file, "A", "B", "C", 1, CoverImage(b"old", "image/png"))
+    add_metadata(mp3_file, "A", "B", "C", 1, CoverImage(b"new", "image/jpeg"))
+
+    (apic,) = ID3(str(mp3_file)).getall("APIC")
+    assert (apic.mime, apic.data) == ("image/jpeg", b"new")

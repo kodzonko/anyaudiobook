@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from anyaudiobook.matter.models import Document
+from anyaudiobook.models import Document
 
 DocumentFactory = Callable[..., Document]
 

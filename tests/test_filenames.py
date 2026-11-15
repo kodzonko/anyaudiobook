@@ -60,3 +60,9 @@ def test_parse_chapter_filename_rejects_unnumbered_stems(stem: str) -> None:
 def test_chapter_filename_round_trips(make_chapter: ChapterFactory) -> None:
     name = chapter_filename(make_chapter(chapter_number=5, title="Round: Trip"), 10)
     assert parse_chapter_filename(name.removesuffix(".mp3")) == (5, "Round Trip")
+
+
+def test_chapter_filename_uses_the_given_extension(
+    make_chapter: ChapterFactory,
+) -> None:
+    assert chapter_filename(make_chapter(3, "Three"), 12, ".wav") == "03. Three.wav"

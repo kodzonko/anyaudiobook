@@ -22,7 +22,7 @@ start instead.
 from collections.abc import Sequence
 
 from anyaudiobook.matter.keywords import MAIN_TEXT_START_TYPES
-from anyaudiobook.matter.models import Document, FilterOptions, MatterKind, Verdict
+from anyaudiobook.matter.models import FilterOptions, MatterKind, Verdict
 from anyaudiobook.matter.signals import (
     content_verdict,
     filename_verdict,
@@ -31,6 +31,7 @@ from anyaudiobook.matter.signals import (
     structural_verdict,
     title_verdict,
 )
+from anyaudiobook.models import Document
 
 
 def classify_documents(

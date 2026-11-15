@@ -2,7 +2,7 @@
 
 <img src="docs/assets/logo.png" alt="anyaudiobook — an open book with pages shaped like sound waves" width="640">
 
-A Python tool to convert EPUB ebooks to audiobooks using Microsoft Edge's Text-to-Speech engine.
+A Python tool to convert ebooks to audiobooks using Microsoft Edge's Text-to-Speech engine.
 
 ## Tool setup
 
@@ -18,56 +18,62 @@ project commands with `mise exec --` (for example, `mise exec -- uv --version`).
 
 ## Features
 
-- Convert any ebook (currently only .epub) to .mp3 audiobook chapters
-- Extract chapter titles and content automatically
-- Skip front and back matter (table of contents, copyright, notes, index,
-  acknowledgments, ads, ...) and strip footnote markers from the narration,
-  see [docs/filtering.md](docs/filtering.md)
+- Reads EPUB, PDF (with a text layer), DOCX, DOC/RTF/ODT, MOBI/AZW/AZW3, TXT
+  and HTML, see [docs/formats.md](docs/formats.md)
+- Writes one tagged MP3 per chapter, or a single M4B audiobook with chapter
+  markers
+- Extracts chapter titles, and the book's title, authors and cover
+- Skips front and back matter (table of contents, copyright, notes, index,
+  acknowledgments, ads, ...) and strips footnotes, page numbers and running
+  headers from the narration, see [docs/filtering.md](docs/filtering.md)
 - Dry-run report of what will be narrated or skipped, and why
-- Process multiple chapters concurrently for faster conversion
-- Organize output files with proper sequential numbering
-- Support for multiple Microsoft Edge TTS voices
-- Smart title detection and formatting
+- Processes multiple chapters concurrently for faster conversion
+- Supports every Microsoft Edge TTS voice, with pitch, rate and volume
+- New input and output formats plug in without touching the rest, see
+  [docs/architecture.md](docs/architecture.md)
 
 ## How It Works
 
-ANYaudiobook parses ebook files, extracts the text content chapter by chapter, and uses Edge TTS to generate natural-sounding audio files. It recognises front and back matter from the EPUB's own markup, the shape of each page and its position in the book, leaves it out, and processes the remaining chapters in parallel to speed up conversion.
+ANYaudiobook reads the ebook into a common form (the book's parts as HTML),
+recognises front and back matter from the book's own markup, the shape of
+each part and its position in the book, leaves it out, narrates the remaining
+chapters in parallel with Edge TTS and packages the audio as MP3 files or an
+M4B.
 
 ## Usage
 
-Edit the settings at the top of `main.py` (EPUB path, output directory, voice,
-author, book title, cover image, what to skip), then run:
+Edit the settings at the top of `main.py` (ebook path, output format and
+location, voice, metadata overrides, what to skip), then run:
 
 ```sh
 uv run python main.py
 ```
 
-It splits the EPUB into chapters, prints which documents it will narrate or
-skip and why, narrates each chapter into `NN. Title.mp3`, then writes ID3 tags
-(artist, album, title, track number, cover art) to every file. Set
-`DRY_RUN = True` to stop after the report.
+It prints which parts of the book it will narrate or skip and why, then
+narrates each chapter. Set `DRY_RUN = True` to stop after the report.
 
 ### As a library
 
 ```python
 from anyaudiobook import (
     DEFAULT_SKIP,
-    EpubToAudiobookConverter,
+    AudiobookConverter,
+    BookMetadata,
+    EdgeTTS,
     FilterOptions,
     MatterKind,
-    tag_chapters,
 )
 
-converter = EpubToAudiobookConverter(
-    "path/to/your/ebook.epub",
+converter = AudiobookConverter(
+    "path/to/your/ebook.pdf",  # or .epub, .docx, .mobi, .azw3, .txt, ...
     "output_directory",
-    "en-US-BrianNeural",  # English (US) male voice
+    EdgeTTS("en-US-BrianNeural"),  # English (US) male voice
+    output_format="m4b",  # or "mp3" for one file per chapter
     filter_options=FilterOptions(skip=DEFAULT_SKIP - {MatterKind.DEDICATION}),
+    metadata=BookMetadata(authors=("Author Name",)),  # overrides the ebook's own
 )
-converter.chunk_epub()  # extract chapters
 print(converter.report())  # what is narrated or skipped, and why
-converter.generate_audiobook(number_of_concurrent_tasks=10)
-tag_chapters("output_directory", "Author Name", "Book Title", "cover.jpg")
+converter.convert(concurrency=10)
 ```
 
 ### Available voices
@@ -95,3 +101,6 @@ uv run ty check
 - uv (managed by mise); install dependencies with `uv sync --locked`
 - Internet access: Edge TTS is Microsoft's online speech service, so neither
   Windows nor the Edge browser is needed
+- [ffmpeg](https://ffmpeg.org) for M4B output
+- [LibreOffice](https://www.libreoffice.org) for DOC, RTF and ODT input (on
+  macOS, the built-in `textutil` is used when LibreOffice is missing)

@@ -23,7 +23,9 @@ def clean_title(title: str) -> str:
     return cleaned
 
 
-def chapter_filename(chapter: BookContent, total_chapters: int) -> str:
+def chapter_filename(
+    chapter: BookContent, total_chapters: int, suffix: str = ".mp3"
+) -> str:
     """Return the ``NN. Title.mp3`` file name for a chapter.
 
     The chapter number is zero-padded to the width of ``total_chapters`` so the
@@ -32,12 +34,13 @@ def chapter_filename(chapter: BookContent, total_chapters: int) -> str:
     Args:
         chapter: The chapter to name.
         total_chapters: How many chapters the book has.
+        suffix: The audio file extension.
 
     Returns:
         The file name, without a directory.
     """
     width = len(str(total_chapters))
-    return f"{chapter.chapter_number:0{width}d}. {clean_title(chapter.title)}.mp3"
+    return f"{chapter.chapter_number:0{width}d}. {clean_title(chapter.title)}{suffix}"
 
 
 def parse_chapter_filename(stem: str) -> tuple[int, str]:

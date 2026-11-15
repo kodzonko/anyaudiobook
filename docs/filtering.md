@@ -2,11 +2,18 @@
 
 Ebooks contain a lot that nobody wants read aloud: tables of contents,
 copyright pages, indexes, endnotes, "also by" pages, footnote markers in the
-middle of sentences. ANYaudiobook classifies every document of the EPUB spine
-and narrates only the main text, unless you configure it otherwise.
+middle of sentences. ANYaudiobook classifies every part ("document") of the
+book and narrates only the main text, unless you configure it otherwise.
 
-The code lives in `src/anyaudiobook/matter/` (classification) and
-`src/anyaudiobook/markup.py` (clean-up inside chapters).
+Documents are an EPUB's spine documents; other formats are split into
+documents by their table of contents or headings first (see
+[formats.md](formats.md)), so the same rules apply to every format. Signals
+specific to EPUB markup (guide, landmarks, `linear="no"`) simply never fire
+for formats that lack them.
+
+The code lives in `src/anyaudiobook/matter/` (classification),
+`src/anyaudiobook/markup.py` (clean-up inside chapters) and
+`src/anyaudiobook/selection.py` (applying the options).
 
 ## Check before you narrate
 
@@ -16,7 +23,7 @@ Narration takes a long time, so look at what will be read first. Set
 ```python
 from anyaudiobook import format_report, read_book
 
-print(format_report(read_book("book.epub").decisions))
+print(format_report(read_book("book.epub").decisions))  # any supported format
 ```
 
 ```text
@@ -35,8 +42,8 @@ to spot and override (see [Configuration](#configuration)).
 
 ## How documents are classified
 
-Documents are read in spine order (the reading order the EPUB declares).
-Signals are checked from most to least reliable.
+Documents are read in reading order (for EPUB, the spine order the book
+declares). Signals are checked from most to least reliable.
 
 | Strength | Signal                                                                                                                                                                                                                        | Applies                                                          |
 | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
@@ -85,6 +92,8 @@ Narrated chapters also lose:
 - page-break markers and `<nav>` blocks
 - `<head>` content such as `<title>`, which ebook tools often fill with the
   book title
+- in PDFs: running headers, footers, page numbers and footnotes in small type
+  at the bottom of the page (see [formats.md](formats.md#pdf))
 - optionally tables (`drop_tables`) and figure/table captions
   (`drop_captions`)
 
@@ -94,7 +103,7 @@ pauses between them, for example after the chapter title.
 ## Configuration
 
 `FilterOptions` (set as `FILTER` in `main.py`, or passed to
-`EpubToAudiobookConverter` / `read_book`):
+`AudiobookConverter` / `read_book`):
 
 | Option             | Default                                | Meaning                                                                                              |
 | ------------------ | -------------------------------------- | ---------------------------------------------------------------------------------------------------- |
@@ -121,9 +130,10 @@ Keyword lists (titles, file names, markup types) are in
 
 ## Known limitations
 
-- Each spine document is judged as a whole. Converters that merge sections
-  into one file (for example a PDF-converted book whose "Table of Contents"
-  file also holds the Preface, or a single "front matter" file with preface,
+- Each document is judged as a whole. Converters that merge sections into
+  one file (for example a PDF-converted book whose "Table of Contents" file
+  also holds the Preface, or a single "front matter" file with preface,
   acknowledgments and about-the-author) are kept or skipped together. Use
   `include`/`exclude` for those.
-- Title and file name keywords cover Polish and English.
+- Title and file name keywords, and the chapter titles recognised in
+  formats without headings, cover Polish and English.

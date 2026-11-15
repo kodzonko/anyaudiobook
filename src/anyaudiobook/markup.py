@@ -145,7 +145,11 @@ def body_of(soup: BeautifulSoup) -> Tag:
 
 def parse_html(html: str | bytes) -> Tag:
     """Parse an XHTML document and return its body without scripts and styles."""
-    soup = BeautifulSoup(html, "html.parser")
+    return clean_body(BeautifulSoup(html, "html.parser"))
+
+
+def clean_body(soup: BeautifulSoup) -> Tag:
+    """Remove scripts and styles from a parsed document and return its body."""
     for element in soup(["script", "style"]):
         element.decompose()
     return body_of(soup)

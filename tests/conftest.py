@@ -1,5 +1,6 @@
 """Shared pytest fixtures."""
 
+import shutil
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -8,6 +9,10 @@ import pytest
 from ebooklib import epub
 
 from anyaudiobook.models import BookContent
+from tests.builders import FakeEngine
+
+FIXTURES = Path(__file__).parent / "fixtures"
+"""Committed test books, see ``fixtures/make_kindle_fixtures.py``."""
 
 ChapterFactory = Callable[..., BookContent]
 
@@ -126,3 +131,26 @@ def epub_file(tmp_path: Path) -> Path:
 def anyio_backend() -> str:
     """Run anyio tests on asyncio only: edge-tts is built on aiohttp."""
     return "asyncio"
+
+
+@pytest.fixture
+def fake_engine() -> FakeEngine:
+    """A speech engine writing silent MP3s instead of calling Edge TTS."""
+    return FakeEngine()
+
+
+@pytest.fixture
+def ffmpeg() -> str:
+    """The path of ffmpeg; skips the test when it is not installed."""
+    path = shutil.which("ffmpeg")
+    if path is None:
+        pytest.skip("ffmpeg is not installed")
+    return path
+
+
+@pytest.fixture
+def no_tools(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Hide every external program by emptying ``PATH``."""
+    empty = tmp_path / "empty-path"
+    empty.mkdir()
+    monkeypatch.setenv("PATH", str(empty))

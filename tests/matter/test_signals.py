@@ -2,7 +2,7 @@
 
 import pytest
 
-from anyaudiobook.matter.models import MatterKind, Reference
+from anyaudiobook.matter.models import MatterKind
 from anyaudiobook.matter.signals import (
     content_verdict,
     filename_verdict,
@@ -11,6 +11,7 @@ from anyaudiobook.matter.signals import (
     structural_verdict,
     title_verdict,
 )
+from anyaudiobook.models import Reference
 from tests.matter.conftest import LONG_TEXT, DocumentFactory
 
 BOOK_FILES = frozenset(f"Text/ch{number}.xhtml" for number in range(1, 7))

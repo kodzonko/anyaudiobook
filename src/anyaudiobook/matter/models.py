@@ -1,12 +1,11 @@
-"""Data types for telling a book's main text apart from front and back matter."""
+"""Data types for telling a book's main text apart from front and back matter.
+
+The documents being classified are :class:`anyaudiobook.models.Document`.
+"""
 
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from enum import StrEnum
-
-from bs4 import Tag
-
-from anyaudiobook.markup import extract_text, heading_titles, parse_html
 
 
 class MatterKind(StrEnum):
@@ -60,76 +59,6 @@ class Verdict:
 
     kind: MatterKind
     reason: str
-
-
-@dataclass(frozen=True, slots=True)
-class Reference:
-    """A guide or landmark entry pointing at a document."""
-
-    type: str
-    """The entry's type, e.g. ``toc``, ``copyright-page`` or ``bodymatter``."""
-    partial: bool = False
-    """True when the entry points at a fragment inside the document."""
-
-
-@dataclass(frozen=True, slots=True)
-class Document:
-    """One document of a book's spine, prepared for classification."""
-
-    file_name: str
-    body: Tag
-    text: str
-    titles: tuple[str, ...] = ()
-    """Title candidates from the document's headings and the book's TOC."""
-    toc_label: str | None = None
-    """The document's label in the book's table of contents."""
-    linear: bool = True
-    is_nav: bool = False
-    references: tuple[Reference, ...] = ()
-
-    @classmethod
-    def from_html(
-        cls,
-        file_name: str,
-        html: str | bytes,
-        *,
-        toc_label: str | None = None,
-        linear: bool = True,
-        is_nav: bool = False,
-        references: tuple[Reference, ...] = (),
-    ) -> Document:
-        """Parse an XHTML document.
-
-        Args:
-            file_name: The document's path inside the book.
-            html: The raw XHTML content.
-            toc_label: The document's label in the book's table of contents.
-            linear: False when the spine marks the document ``linear="no"``.
-            is_nav: True for the EPUB 3 navigation document.
-            references: Guide and landmark entries pointing at the document.
-
-        Returns:
-            The parsed document.
-        """
-        body = parse_html(html)
-        titles = heading_titles(body)
-        if toc_label:
-            titles.append(toc_label)
-        return cls(
-            file_name=file_name,
-            body=body,
-            text=extract_text(body),
-            titles=tuple(dict.fromkeys(titles)),
-            toc_label=toc_label,
-            linear=linear,
-            is_nav=is_nav,
-            references=references,
-        )
-
-    @property
-    def word_count(self) -> int:
-        """The number of words in the document's text."""
-        return len(self.text.split())
 
 
 @dataclass(frozen=True, slots=True)
