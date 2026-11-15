@@ -29,38 +29,53 @@ ANYaudiobook parses ebook files, extracts the text content chapter by chapter, a
 
 ## Usage
 
-```python
-from anyaudiobook.main import EpubToAudiobookConverter
+Edit the settings at the top of `main.py` (EPUB path, output directory, voice,
+author, book title, cover image), then run:
 
-# Initialize the converter with the path to EPUB file, output directory, and voice
+```sh
+uv run python main.py
+```
+
+It splits the EPUB into chapters, narrates each one into `NN. Title.mp3`, then
+writes ID3 tags (artist, album, title, track number, cover art) to every file.
+
+### As a library
+
+```python
+from anyaudiobook import EpubToAudiobookConverter, tag_chapters
+
 converter = EpubToAudiobookConverter(
     "path/to/your/ebook.epub",
     "output_directory",
     "en-US-BrianNeural",  # English (US) male voice
 )
-
-# Extract chapters from the EPUB file
-converter.chunk_epub()
-
-# Generate the audiobook (with 10 concurrent chapters processing)
+converter.chunk_epub()  # extract chapters
 converter.generate_audiobook(number_of_concurrent_tasks=10)
+tag_chapters("output_directory", "Author Name", "Book Title", "cover.jpg")
 ```
 
-## Available Voices
-
-You can get a list of all available voices:
+### Available voices
 
 ```python
-import asyncio
-from anyaudiobook.main import get_available_voices
+import anyio
+from anyaudiobook import get_available_voices
 
-# Get all available voices
-voices = asyncio.run(get_available_voices())
+voices = anyio.run(get_available_voices)
 print(voices)
+```
+
+## Development
+
+```sh
+uv run pytest  # includes a coverage report; fails below 90%
+uv run ruff check --fix
+uv format
+uv run ty check
 ```
 
 ## Requirements
 
 - Python 3.14 (managed by mise)
 - uv (managed by mise); install dependencies with `uv sync --locked`
-- Windows 10/11 with Microsoft Edge installed
+- Internet access: Edge TTS is Microsoft's online speech service, so neither
+  Windows nor the Edge browser is needed

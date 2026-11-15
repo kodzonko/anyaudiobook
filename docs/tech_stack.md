@@ -1,0 +1,1 @@
+- using `anyio` (with asyncio backend) over pure `asyncio` for better concurrency and task management. Can't use other backends with `anyio` because Edge TTS relies on `aiohttp` which is asyncio-based.
