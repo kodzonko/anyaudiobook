@@ -23,6 +23,7 @@ from anyaudiobook.progress import (
     Reading,
     describe,
 )
+from anyaudiobook.prosody import Prosody
 from anyaudiobook.tts import EdgeTTS, SpeechEngine
 from anyaudiobook.writers import WRITERS
 
@@ -35,16 +36,14 @@ _LOG_FORMAT = "%(asctime)s %(levelname)-7s %(message)s"
 
 
 class AdvancedSettings(BaseModel):
-    """Settings the TUI does not ask for; set them in ``main.py``."""
+    """Settings the TUI does not ask for; set them in ``main.py``.
 
-    model_config = ConfigDict(frozen=True)
+    Unknown settings are rejected, so a misspelt one (or one that moved to
+    the form, like ``pitch``) does not go unnoticed.
+    """
 
-    pitch: str = "+0Hz"
-    """Pitch adjustment of the voice, e.g. ``-10Hz``."""
-    rate: str = "+0%"
-    """Speed adjustment of the voice, e.g. ``+10%``."""
-    volume: str = "+0%"
-    """Volume adjustment of the voice, e.g. ``-20%``."""
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
     concurrency: int = Field(default=5, ge=1)
     """Most chapters narrated at the same time."""
     filter_options: FilterOptions = FilterOptions()
@@ -64,6 +63,8 @@ class ConversionJob(BaseModel):
     """A key of :data:`anyaudiobook.writers.WRITERS`, e.g. ``m4b``."""
     voice: str
     """Edge TTS voice short name, e.g. ``pl-PL-ZofiaNeural``."""
+    prosody: Prosody = Prosody()
+    """The voice's speed, pitch and volume."""
     log: bool = False
     """Write a log file next to the audiobook, see :attr:`log_path`."""
     settings: AdvancedSettings = AdvancedSettings()
@@ -83,10 +84,7 @@ class ConversionJob(BaseModel):
 
     def engine(self) -> EdgeTTS:
         """Return the speech engine narrating this job."""
-        settings = self.settings
-        return EdgeTTS(
-            self.voice, pitch=settings.pitch, rate=settings.rate, volume=settings.volume
-        )
+        return EdgeTTS.tuned(self.voice, self.prosody)
 
     def command(self, worker: Sequence[str] = WORKER_COMMAND) -> list[str]:
         """Return the command line of a worker process running this job."""
@@ -204,7 +202,8 @@ def job_log(job: ConversionJob) -> Generator[None]:
     try:
         logger.info("Ebook:  %s", job.source)
         logger.info("Output: %s (%s)", job.output, job.output_format.upper())
-        logger.info("Voice:  %s %s", job.voice, job.settings.model_dump_json())
+        logger.info("Voice:  %s (%s)", job.voice, job.prosody)
+        logger.info("Settings: %s", job.settings.model_dump_json())
         yield
     finally:
         logger.removeHandler(handler)

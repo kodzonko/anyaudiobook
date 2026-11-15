@@ -121,8 +121,8 @@ main.py ─▶ cli.py ─▶ AnyAudiobookApp (tui/)
   `Packaging`, `Finished`, `Failed`), passed to a `ProgressCallback` through
   `AudiobookConverter.convert()`, the writer and `synthesize_chapters()`.
   They serialise to one JSON line each.
-- `jobs.py`: `ConversionJob` (ebook, output, format, voice, `--log`, and the
-  `AdvancedSettings` from `main.py`) is everything a conversion needs, as
+- `jobs.py`: `ConversionJob` (ebook, output, format, voice and its
+  `Prosody`, `--log`, and the `AdvancedSettings` from `main.py`) is everything a conversion needs, as
   JSON. `run_job()` runs one, logging each event; `job_log()` adds the log
   file. Also the output naming (`default_output`, `with_format`,
   `resolve_output`, `log_path`) and `start_detached()`.
@@ -134,8 +134,18 @@ main.py ─▶ cli.py ─▶ AnyAudiobookApp (tui/)
   remembers choices (`store.py`). `ConversionScreen` runs the worker with
   `anyio.open_process` and applies its events. With `--detach` the app
   starts the worker with `start_detached()` and exits instead.
+- `prosody.py`: `Prosody`, the voice's speed, pitch and volume as whole
+  numbers, and the `Adjustment` ranges the form's sliders offer (the
+  `Slider` widget in `tui/widgets.py`). `Prosody.edge()` writes them as Edge
+  TTS takes them (`+10%`, `-5Hz`).
+- Previews: `FormScreen.play_preview()` (a Textual worker; a new preview
+  cancels the running one) narrates `BookPreview.sample` with
+  `EdgeTTS.tuned()` into a temporary file and plays it with `tools.play()`,
+  using the player `tools.find_player()` found. `play()` kills the player
+  when cancelled: Textual cancels workers with `Task.cancel()`, which
+  `anyio.run_process` would absorb, waiting for the player to finish.
 - `store.py`: SQLite tables `preferences` (last format, language, voice per
-  language) and `voices` (the last downloaded list), versioned with
+  language, prosody as JSON) and `voices` (the last downloaded list), versioned with
   `PRAGMA user_version`.
 
 The TUI tests drive the real app with Textual's pilot and run real worker

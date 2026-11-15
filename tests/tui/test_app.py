@@ -11,11 +11,12 @@ import pytest
 from mutagen.mp4 import MP4
 from textual.widgets import Input, Static
 
+from anyaudiobook.prosody import Prosody
 from anyaudiobook.store import Choices, Store
 from anyaudiobook.tui import Detached
 from anyaudiobook.tui.conversion import ConversionScreen
 from anyaudiobook.tui.form import FormScreen, ReportScreen
-from anyaudiobook.tui.widgets import ChoiceList
+from anyaudiobook.tui.widgets import ChoiceList, Slider
 from tests.test_voices import AVA, RYAN, ZOFIA
 from tests.tui.conftest import (
     SIZE,
@@ -39,6 +40,16 @@ def form(app: RecordingApp) -> FormScreen:
 def note(screen: FormScreen, selector: str) -> str:
     """The text of a note on the form."""
     return str(screen.query_one(selector, Static).render())
+
+
+def tuning(screen: FormScreen) -> Prosody:
+    """The speed, pitch and volume the form's sliders are set to."""
+    return Prosody(
+        **{
+            name: screen.query_one(f"#{name}", Slider).value
+            for name in Prosody.model_fields
+        }
+    )
 
 
 async def test_converting_a_book_to_mp3_with_a_log(
@@ -84,7 +95,36 @@ async def test_converting_a_book_to_mp3_with_a_log(
         await pilot.press("n")  # back to the form for another book
         assert isinstance(app.screen, FormScreen)
 
-    assert store.load_choices() == Choices("mp3", "pl", {"pl": ZOFIA.short_name})
+    assert store.load_choices() == Choices(
+        "mp3", "pl", {"pl": ZOFIA.short_name}, Prosody()
+    )
+
+
+async def test_the_voice_is_tuned_with_the_sliders(
+    make_app: AppFactory, book: Path, store: Store
+) -> None:
+    app = make_app(log=True)
+    async with app.run_test(size=SIZE) as pilot:
+        screen = form(app)
+        await paste(pilot, "#source", str(book))
+        await wait_for(pilot, lambda: screen.preview)
+        await wait_for(pilot, lambda: screen.query_one("#voice", ChoiceList).value)
+
+        screen.query_one("#rate", Slider).focus()
+        await pilot.press("right", "right", "enter")  # speed +10%, on to pitch
+        await pilot.press("left", "tab", "left", "left", "0")  # volume back to 0
+        await pilot.press("enter")  # on to Convert
+        await pilot.press("enter")
+
+        conversion = app.screen
+        assert isinstance(conversion, ConversionScreen)
+        await wait_for(pilot, lambda: conversion.ended)
+
+    tuned = Prosody(rate=10, pitch=-5)
+    assert conversion.job.prosody == tuned
+    assert store.load_choices().prosody == tuned
+    log = conversion.job.log_path.read_text(encoding="utf-8")
+    assert "(speed +10%, pitch -5Hz, volume +0%)" in log  # the worker got it
 
 
 async def test_converting_a_book_to_m4b(
@@ -150,13 +190,14 @@ async def test_a_detached_worker_that_cannot_start_is_reported(
 async def test_the_last_choices_are_chosen_again(
     make_app: AppFactory, store: Store
 ) -> None:
-    store.save_choices("mp3", "en", AVA.short_name)
-    store.save_choices("m4b", "pl", ZOFIA.short_name)
+    store.save_choices("mp3", "en", AVA.short_name, Prosody())
+    store.save_choices("m4b", "pl", ZOFIA.short_name, Prosody(rate=20, volume=-10))
     app = make_app()
     async with app.run_test(size=SIZE) as pilot:
         screen = form(app)
         await wait_for(pilot, lambda: screen.query_one("#voice", ChoiceList).value)
 
+        assert tuning(screen) == Prosody(rate=20, volume=-10)
         assert screen.query_one("#format", ChoiceList).value == "m4b"
         assert screen.query_one("#language", ChoiceList).value == "pl"
         assert screen.query_one("#voice", ChoiceList).value == ZOFIA.short_name

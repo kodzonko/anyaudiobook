@@ -24,6 +24,7 @@ from anyaudiobook.progress import (
     ProgressCallback,
     ignore,
 )
+from anyaudiobook.prosody import PITCH, RATE, VOLUME, Prosody
 
 TextProgress = Callable[[int], None]
 """Told how many characters of a text have been narrated so far."""
@@ -65,6 +66,16 @@ class EdgeTTS:
     rate: str = "+0%"
     volume: str = "+0%"
     audio_suffix: ClassVar[str] = ".mp3"
+
+    @classmethod
+    def tuned(cls, voice: str, prosody: Prosody) -> EdgeTTS:
+        """Return ``voice`` speaking with the speed, pitch and volume of ``prosody``."""
+        return cls(
+            voice,
+            pitch=prosody.edge(PITCH),
+            rate=prosody.edge(RATE),
+            volume=prosody.edge(VOLUME),
+        )
 
     async def synthesize(
         self, text: str, output_path: Path, progress: TextProgress | None = None

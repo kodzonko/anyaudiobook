@@ -1,7 +1,8 @@
 """The screen where the user sets up a conversion."""
 
 import sqlite3
-from collections.abc import Callable
+import tempfile
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar
@@ -28,13 +29,15 @@ from anyaudiobook.jobs import (
 )
 from anyaudiobook.matter.models import FilterOptions
 from anyaudiobook.models import BookMetadata
+from anyaudiobook.prosody import ADJUSTMENTS, Adjustment, Prosody
 from anyaudiobook.readers import READERS
 from anyaudiobook.report import format_report
 from anyaudiobook.selection import read_book
 from anyaudiobook.store import Choices
+from anyaudiobook.tools import play
 from anyaudiobook.tui.config import TuiConfig
 from anyaudiobook.tui.paths import parse_path_input
-from anyaudiobook.tui.widgets import ChoiceList
+from anyaudiobook.tui.widgets import ChoiceList, Slider
 from anyaudiobook.voices import Language, Voice, group_by_language
 from anyaudiobook.writers import WRITERS, writer_for
 
@@ -42,6 +45,29 @@ VOICES_TIMEOUT = 30.0
 """Seconds to wait for the list of voices before keeping the cached one."""
 DEFAULT_LANGUAGE = "en"
 """Language chosen when nothing was remembered."""
+SAMPLE_CHARACTERS = 200
+"""About how much of the ebook a preview reads: some ten seconds."""
+PREVIEW_TIMEOUT = 30.0
+"""Seconds to wait for a preview to be narrated."""
+TUNING_HINT = (
+    "Changes to the voice's own speed, pitch and volume: ← → adjust, 0 resets."
+    " ctrl+t plays a sample."
+)
+
+
+def opening(text: str, limit: int = SAMPLE_CHARACTERS) -> str:
+    """Return the start of ``text`` to read as a sample, about ``limit`` long.
+
+    Whole sentences are kept when they fit; otherwise it is cut between words.
+    """
+    text = " ".join(text.split())
+    if len(text) <= limit:
+        return text
+    cut = text[: limit + 1]
+    end = max(cut.rfind(mark) for mark in (". ", "! ", "? ", "… "))
+    if end >= limit // 3:
+        return cut[: end + 1]
+    return cut.rsplit(" ", 1)[0][:limit] + "…"
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,17 +82,23 @@ class BookPreview:
     """How many parts of the book are left out."""
     report: str
     """What is narrated and skipped, and why, see :func:`format_report`."""
+    sample: str
+    """The opening of the first narrated chapter, read by the preview."""
 
     @classmethod
     def read(cls, source: Path, filter_options: FilterOptions) -> BookPreview:
         """Read the ebook at ``source`` and choose its chapters."""
         book = read_book(source, filter_options)
+        metadata = audiobook_metadata(source, book.metadata)
         return cls(
             source=source,
-            metadata=audiobook_metadata(source, book.metadata),
+            metadata=metadata,
             chapters=len(book.chapters),
             skipped=sum(not decision.narrate for decision in book.decisions),
             report=format_report(book.decisions),
+            sample=opening(book.chapters[0].content if book.chapters else "")
+            or metadata.title
+            or source.stem,
         )
 
     @property
@@ -99,11 +131,13 @@ def voice_label(voice: Voice) -> str:
 
 
 class FormScreen(Screen[None]):
-    """Choose the ebook, output format and file, language and voice."""
+    """Choose the ebook, output format and file, language, voice and its tuning."""
 
     BINDINGS: ClassVar[list[BindingType]] = [
         Binding("ctrl+s", "convert", "Convert", priority=True),
+        Binding("ctrl+t", "preview", "Preview", priority=True),
         Binding("ctrl+r", "report", "Report", priority=True),
+        Binding("escape", "stop_preview", "Stop preview", show=False),
     ]
 
     def __init__(self, config: TuiConfig, start: StartConversion) -> None:
@@ -133,7 +167,7 @@ class FormScreen(Screen[None]):
             yield Label("Save as", classes="field")
             yield Input(placeholder="Chosen once the ebook is read", id="output")
             yield Static(id="output-note", classes="note")
-            with Horizontal(id="pickers"):
+            with Horizontal(id="pickers", classes="row"):
                 with Vertical():
                     yield Label("Language", classes="field")
                     yield ChoiceList(placeholder="Loading voices…", id="language")
@@ -141,8 +175,21 @@ class FormScreen(Screen[None]):
                     yield Label("Voice", classes="field")
                     yield ChoiceList(placeholder="Choose a language", id="voice")
             yield Static(id="voices-status", classes="note")
+            with Horizontal(id="tuning", classes="row"):
+                for adjustment in ADJUSTMENTS:
+                    with Vertical():
+                        yield Label(adjustment.label, classes="field")
+                        yield Slider(
+                            minimum=adjustment.minimum,
+                            maximum=adjustment.maximum,
+                            step=adjustment.step,
+                            unit=adjustment.unit,
+                            id=adjustment.name,
+                        )
+            yield Static(TUNING_HINT, id="tuning-note", classes="note")
             with Horizontal(id="actions"):
                 yield Button("Convert", id="convert", variant="primary")
+                yield Button("Preview", id="preview")
                 yield Static(self._mode(), id="mode", classes="note")
         yield Footer()
 
@@ -154,6 +201,8 @@ class FormScreen(Screen[None]):
             [(name, writer.description) for name, writer in WRITERS.items()],
             self.choices.output_format,
         )
+        for adjustment in ADJUSTMENTS:
+            self._slider(adjustment).value = self.choices.prosody.value(adjustment)
         cached = self._from_store(self.config.store.voices, [])
         if cached:
             fetched_at = self._from_store(self.config.store.voices_fetched_at, None)
@@ -344,7 +393,7 @@ class FormScreen(Screen[None]):
 
     @on(ChoiceList.Chosen, "#voice")
     def _voice_chosen(self) -> None:
-        """Move on to the Convert button."""
+        """Move on to the Convert button: the tuning is usually kept as it was."""
         self.query_one("#convert", Button).focus()
 
     def _show_language_voices(self) -> None:
@@ -360,6 +409,62 @@ class FormScreen(Screen[None]):
             current or self.choices.voices.get(code or ""),
         )
 
+    # --- previewing --------------------------------------------------------
+
+    @on(Button.Pressed, "#preview")
+    def action_preview(self) -> None:
+        """Narrate the opening of the ebook with the chosen voice, and play it."""
+        voice = self.query_one("#voice", ChoiceList).value
+        if self.preview is None:
+            self.notify(
+                "Choose an ebook first: the preview reads its opening.",
+                severity="warning",
+            )
+            return
+        if voice is None:
+            self.notify("Choose a voice first.", severity="warning")
+            return
+        player = self.config.find_player()
+        if player is None:
+            self.notify(
+                "Previews need an audio player: install ffmpeg (for ffplay) or mpv.",
+                title="Cannot preview",
+                severity="error",
+            )
+            return
+        self.play_preview(self.preview.sample, voice, self._prosody(), player)
+
+    def action_stop_preview(self) -> None:
+        """Stop the preview that is being narrated or played."""
+        self.workers.cancel_group(self, "preview")
+        self._say("#tuning-note", TUNING_HINT)
+
+    @work(exclusive=True, group="preview")
+    async def play_preview(
+        self, text: str, voice: str, prosody: Prosody, player: Sequence[str]
+    ) -> None:
+        """Narrate ``text`` into a temporary file and play it with ``player``.
+
+        Starting another preview, or stopping, cancels this one, which also
+        stops the player.
+        """
+        engine = self.config.preview_engine(voice, prosody)
+        self._say("#tuning-note", f"Narrating a sample ({prosody})…", "busy")
+        try:
+            with tempfile.TemporaryDirectory(prefix="anyaudiobook-") as folder:
+                path = Path(folder) / f"preview{engine.audio_suffix}"
+                with anyio.fail_after(PREVIEW_TIMEOUT):
+                    await engine.synthesize(text, path)
+                self._say(
+                    "#tuning-note", f"Playing a sample ({prosody}); esc stops it.", "ok"
+                )
+                await play(player, path)
+        except Exception as error:  # noqa: BLE001 - offline, timeout and player errors alike
+            reason = str(error) or type(error).__name__
+            self._say("#tuning-note", f"Cannot preview: {reason}", "error")
+            return
+        self._say("#tuning-note", TUNING_HINT)
+
     # --- converting --------------------------------------------------------
 
     @on(Button.Pressed, "#convert")
@@ -368,10 +473,11 @@ class FormScreen(Screen[None]):
         job = self._job()
         if job is None:
             return
+        self.action_stop_preview()
         language = self.query_one("#language", ChoiceList).value or ""
         self._from_store(
             lambda: self.config.store.save_choices(
-                job.output_format, language, job.voice
+                job.output_format, language, job.voice, job.prosody
             ),
             None,
         )
@@ -404,11 +510,25 @@ class FormScreen(Screen[None]):
             output=output,
             output_format=output_format,
             voice=voice,
+            prosody=self._prosody(),
             log=self.config.log,
             settings=self.config.settings,
         )
 
+    def _prosody(self) -> Prosody:
+        """The speed, pitch and volume set with the sliders."""
+        return Prosody.model_validate(
+            {
+                adjustment.name: self._slider(adjustment).value
+                for adjustment in ADJUSTMENTS
+            }
+        )
+
     # --- helpers -----------------------------------------------------------
+
+    def _slider(self, adjustment: Adjustment) -> Slider:
+        """The slider setting ``adjustment``."""
+        return self.query_one(f"#{adjustment.name}", Slider)
 
     def _mode(self) -> str:
         """Describe how the conversion will run, next to the Convert button."""

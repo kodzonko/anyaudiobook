@@ -1,10 +1,11 @@
-"""Tests for the ChoiceList widget, in a small app of its own."""
+"""Tests for the TUI's widgets, each in a small app of its own."""
 
 import pytest
 from textual import on
 from textual.app import App, ComposeResult
+from textual.widgets import Button
 
-from anyaudiobook.tui.widgets import CHOSEN_MARK, ChoiceList
+from anyaudiobook.tui.widgets import CHOSEN_MARK, ChoiceList, Slider
 
 pytestmark = pytest.mark.anyio
 
@@ -115,3 +116,63 @@ async def test_choice_list_choose_marks_and_highlights() -> None:
 
         assert (fruit.value, fruit.highlighted) == ("cherry", 3)
         assert app.chosen == []
+
+
+class SliderApp(App[None]):
+    """A speed slider at +10%, and a button after it."""
+
+    def compose(self) -> ComposeResult:
+        """The slider, then the button enter moves on to."""
+        yield Slider(minimum=-50, maximum=100, step=5, unit="%", value=10)
+        yield Button("Next")
+
+
+SLIDER_SIZE = (40, 6)
+"""The slider's content is 36 cells wide: 26 for its track, from x=4 on."""
+
+
+async def test_slider_steps_with_left_and_right_within_its_range() -> None:
+    app = SliderApp()
+    async with app.run_test() as pilot:
+        slider = app.query_one(Slider)
+        slider.focus()
+
+        await pilot.press("right", "right", "left")
+        assert slider.value == 15
+        await pilot.press(*["right"] * 30)
+        assert slider.value == 100
+        await pilot.press("0")
+        assert slider.value == 0
+        await pilot.press(*["left"] * 30)
+        assert slider.value == -50
+
+        await pilot.press("enter")
+        assert app.focused is app.query_one(Button)
+
+
+async def test_slider_draws_its_value_on_a_track_from_zero() -> None:
+    app = SliderApp()
+    async with app.run_test(size=SLIDER_SIZE):
+        slider = app.query_one(Slider)
+
+        text = str(slider.render())
+        track = text.removeprefix("◀ ").removesuffix(" ▶  +10%")
+
+        assert len(track) == 26
+        assert track == "────────┼━●───────────────"  # 0 at 8, +10 at 10
+        slider.value = -50
+        assert str(slider.render()).startswith("◀ ●━━━━━━━┼")
+
+
+@pytest.mark.parametrize(
+    ("x", "value"),
+    [(2, 5), (4, -50), (4 + 8, 0), (4 + 25, 100), (31, 15)],
+    ids=["left arrow", "track start", "track at zero", "track end", "right arrow"],
+)
+async def test_slider_follows_clicks(x: int, value: int) -> None:
+    app = SliderApp()
+    async with app.run_test(size=SLIDER_SIZE) as pilot:
+        await pilot.click(Slider, offset=(x, 1))
+
+        assert app.query_one(Slider).value == value
+        assert app.focused is app.query_one(Slider)

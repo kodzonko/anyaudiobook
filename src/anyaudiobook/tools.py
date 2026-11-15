@@ -1,12 +1,24 @@
-"""Run the external programs some formats need (LibreOffice, ffmpeg)."""
+"""External programs: LibreOffice and ffmpeg for some formats, a player for previews."""
 
 import shutil
 import subprocess
+import tempfile
 from collections.abc import Sequence
+from pathlib import Path
+
+import anyio
 
 from anyaudiobook.errors import AnyAudiobookError, MissingToolError
 
 _STDERR_TAIL = 2000
+
+_PLAYERS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("afplay", ()),  # built into macOS
+    ("ffplay", ("-nodisp", "-autoexit", "-loglevel", "error")),  # comes with ffmpeg
+    ("mpv", ("--no-video", "--no-terminal")),  # leaves the terminal to the TUI
+    ("mpg123", ("-q",)),
+)
+"""Command-line audio players, in order of preference, and their options."""
 
 
 def find_tool(*names: str) -> str | None:
@@ -15,6 +27,48 @@ def find_tool(*names: str) -> str | None:
         if path := shutil.which(name):
             return path
     return None
+
+
+def find_player() -> list[str] | None:
+    """Return the command playing an MP3 file given after it, or None.
+
+    Every player runs without a window and without taking the terminal.
+    """
+    for name, options in _PLAYERS:
+        if path := shutil.which(name):
+            return [path, *options]
+    return None
+
+
+async def play(player: Sequence[str], audio: Path) -> None:
+    """Play ``audio`` with ``player`` (see :func:`find_player`) to the end.
+
+    Cancelling stops the player. This does not rely on
+    :func:`anyio.run_process`, which waits for the program to exit when its
+    task is cancelled the asyncio way, as Textual cancels workers.
+
+    Raises:
+        AnyAudiobookError: If the player fails.
+    """
+    with tempfile.TemporaryFile() as errors:
+        process = await anyio.open_process(
+            [*player, str(audio)],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=errors,
+        )
+        try:
+            returncode = await process.wait()
+        finally:
+            if process.returncode is None:
+                process.kill()
+                with anyio.CancelScope(shield=True):
+                    await process.wait()
+        if returncode != 0:
+            errors.seek(0)
+            output = errors.read().decode(errors="replace").strip()[-_STDERR_TAIL:]
+            name = Path(player[0]).name
+            raise AnyAudiobookError(f"the player ({name}) failed: {output}")
 
 
 def require_tool(purpose: str, *names: str, hint: str = "") -> str:

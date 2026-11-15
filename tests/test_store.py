@@ -1,8 +1,13 @@
 """Tests for the SQLite store of choices and voices."""
 
+import sqlite3
+from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
+
+from anyaudiobook.prosody import Prosody
 from anyaudiobook.store import DB_NAME, Choices, Store
 from tests.test_voices import AVA, RYAN, ZOFIA
 
@@ -21,14 +26,29 @@ def test_store_remembers_the_last_choices_and_a_voice_per_language(
 ) -> None:
     store = Store(tmp_path / "app.db")
 
-    store.save_choices("m4b", "pl", ZOFIA.short_name)
-    store.save_choices("mp3", "en", RYAN.short_name)
+    store.save_choices("m4b", "pl", ZOFIA.short_name, Prosody(pitch=-5))
+    store.save_choices("mp3", "en", RYAN.short_name, Prosody(rate=15, volume=-10))
 
     assert Store(tmp_path / "app.db").load_choices() == Choices(
         output_format="mp3",
         language="en",
         voices={"pl": ZOFIA.short_name, "en": RYAN.short_name},
+        prosody=Prosody(rate=15, volume=-10),
     )
+
+
+@pytest.mark.parametrize(
+    "saved", ['{"rate": 500}', "not json", '{"rate": "fast"}'], ids=str
+)
+def test_store_ignores_an_unusable_saved_prosody(tmp_path: Path, saved: str) -> None:
+    store = Store(tmp_path / "app.db")
+    store.save_choices("mp3", "en", RYAN.short_name, Prosody(rate=15))
+    with closing(sqlite3.connect(store.path)) as connection, connection:
+        connection.execute(
+            "UPDATE preferences SET value = ? WHERE key = 'prosody'", (saved,)
+        )
+
+    assert store.load_choices().prosody == Prosody()
 
 
 def test_store_replaces_the_saved_voices(tmp_path: Path) -> None:

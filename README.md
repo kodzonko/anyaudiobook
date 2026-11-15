@@ -27,12 +27,13 @@ project commands with `mise exec --` (for example, `mise exec -- uv --version`).
   acknowledgments, ads, ...) and strips footnotes, page numbers and running
   headers from the narration, see [docs/filtering.md](docs/filtering.md)
 - Interactive terminal UI: paste the ebook's path, pick the format, file,
-  language and voice, and watch the progress
+  language and voice, tune its speed, pitch and volume with sliders (and
+  hear a sample of the book), and watch the progress
 - Converts in the background with `--detach`, and logs with `--log`
-- Remembers your last format, language and voice
+- Remembers your last format, language, voice, speed, pitch and volume
 - Report of what will be narrated or skipped, and why
 - Processes multiple chapters concurrently for faster conversion
-- Supports every Microsoft Edge TTS voice, with pitch, rate and volume
+- Supports every Microsoft Edge TTS voice
 
 ## How It Works
 
@@ -52,11 +53,13 @@ uv run python main.py --log      # write a log next to the audiobook (-l)
 
 Paste (or drop) the ebook's path, then choose the output format, where to
 save it (by default `Author - Title` next to the ebook), the language and
-the voice: arrows move, enter or space choose, typing jumps. `ctrl+s`
-converts, `ctrl+r` shows what will be narrated or skipped and why.
+the voice: arrows move, enter or space choose, typing jumps. The speed,
+pitch and volume sliders below move with left and right, and `ctrl+t`
+plays the book's opening with them. `ctrl+s` converts, `ctrl+r` shows what
+will be narrated or skipped and why. Every
+choice is remembered, so the next book needs only its path and `ctrl+s`.
 
-Pitch, rate, volume, concurrency and what to skip are set at the top of
-`main.py`. Details are in [docs/usage.md](docs/usage.md).
+Concurrency and what to skip are set at the top of `main.py`. Details are in [docs/usage.md](docs/usage.md).
 
 ## Development
 

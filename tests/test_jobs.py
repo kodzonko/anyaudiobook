@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from anyaudiobook.jobs import (
     WORKER_COMMAND,
+    AdvancedSettings,
     ConversionJob,
     default_output,
     job_log,
@@ -128,11 +129,9 @@ def test_job_rejects_unknown_formats(tmp_path: Path) -> None:
         make_job(tmp_path / "b.epub", tmp_path / "out", output_format="ogg")
 
 
-def test_job_narrates_with_its_voice_and_settings(tmp_path: Path) -> None:
+def test_job_narrates_with_its_voice_and_prosody(tmp_path: Path) -> None:
     job = make_job(
-        tmp_path / "b.epub",
-        tmp_path / "out",
-        settings={"pitch": "-10Hz", "rate": "+5%"},
+        tmp_path / "b.epub", tmp_path / "out", prosody={"pitch": -10, "rate": 5}
     )
 
     assert job.engine() == EdgeTTS("pl-PL-ZofiaNeural", pitch="-10Hz", rate="+5%")
@@ -159,15 +158,20 @@ def test_run_job_reports_every_stage(book: Path, tmp_path: Path) -> None:
     assert not (output / f"{output.name}.log").exists()
 
 
+def test_settings_reject_what_moved_to_the_form() -> None:
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        AdvancedSettings.model_validate({"pitch": "-10Hz"})
+
+
 def test_run_job_writes_a_log_when_asked(book: Path, tmp_path: Path) -> None:
-    job = make_job(book, tmp_path / "Lorem", log=True)
+    job = make_job(book, tmp_path / "Lorem", log=True, prosody={"rate": 10})
 
     with job_log(job):
         run_job(job, lambda event: None, FakeEngine())
 
     log = job.log_path.read_text(encoding="utf-8")
     assert job.log_path == tmp_path / "Lorem" / "Lorem.log"
-    assert "Voice:  pl-PL-ZofiaNeural" in log
+    assert "Voice:  pl-PL-ZofiaNeural (speed +10%, pitch +0Hz, volume +0%)" in log
     assert "What is narrated and skipped" in log
     assert "Narrated 2/2: Chapter 2" in log
     assert "Done: wrote 2 files" in log

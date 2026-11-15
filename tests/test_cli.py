@@ -85,7 +85,7 @@ def test_main_runs_the_app_with_the_options(
         return detached
 
     monkeypatch.setattr(AnyAudiobookApp, "run", run)
-    settings = AdvancedSettings(pitch="-10Hz")
+    settings = AdvancedSettings(concurrency=2)
 
     cli.main(["--detach", "--log"], app_dir=tmp_path, settings=settings)
 

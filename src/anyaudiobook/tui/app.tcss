@@ -35,17 +35,19 @@ ChoiceList {
     max-height: 12;
 }
 
-#pickers {
+/* Fields side by side: language and voice; speed, pitch and volume. */
+.row {
     height: auto;
 }
 
-#pickers > Vertical {
+.row > Vertical {
     width: 1fr;
     height: auto;
+    margin-right: 1;
 }
 
-#language {
-    margin-right: 1;
+.row > Vertical:last-child {
+    margin-right: 0;
 }
 
 #actions {
@@ -53,8 +55,12 @@ ChoiceList {
     margin: 1 0;
 }
 
+#actions > Button {
+    margin-right: 1;
+}
+
 #actions > .note {
-    padding: 1 2;
+    padding: 1 1;
 }
 
 #conversion {

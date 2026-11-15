@@ -101,8 +101,8 @@ class ConversionScreen(Screen[None]):
         """A heading, the job, a progress bar, a status line and a log."""
         job = self.job
         details = [
-            f"Voice: {job.voice}    Format: {job.output_format.upper()}",
-            f"Output: {job.output}",
+            f"Voice: {job.voice} ({job.prosody})",
+            f"Output: {job.output} ({job.output_format.upper()})",
         ]
         if job.log:
             details.append(f"Log: {job.log_path}")
