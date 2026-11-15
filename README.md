@@ -1,5 +1,7 @@
 # ANYaudiobook
 
+<img src="docs/assets/logo.png" alt="anyaudiobook — an open book with pages shaped like sound waves" width="640">
+
 A Python tool to convert EPUB ebooks to audiobooks using Microsoft Edge's Text-to-Speech engine.
 
 ## Tool setup
