@@ -1,18 +1,28 @@
 """Tests for EPUB chapter extraction."""
 
 from pathlib import Path
-from unittest.mock import Mock, patch
 
-import ebooklib
 import pytest
 from bs4 import BeautifulSoup, Tag
+from ebooklib import epub
 
 from anyaudiobook.epub_parser import (
-    is_fluff,
-    parse_document,
+    load_documents,
     parse_heading,
+    read_book,
     read_chapters,
 )
+from anyaudiobook.matter import (
+    DEFAULT_SKIP,
+    FilterOptions,
+    MatterKind,
+    Reference,
+    classify_documents,
+)
+from tests.conftest import EpubFactory, Page
+
+LONG = " ".join(["word"] * 200)
+"""Enough words for a page to count as a chapter rather than a short page."""
 
 
 def _heading(html: str) -> Tag:
@@ -20,6 +30,18 @@ def _heading(html: str) -> Tag:
     tag = BeautifulSoup(html, "html.parser").find("h1")
     assert isinstance(tag, Tag)
     return tag
+
+
+def _chapter(
+    name: str, title: str, *, toc: str | None = None, linear: bool = True
+) -> Page:
+    """Return a page holding a long chapter with an ``<h1>`` title."""
+    return Page(name, f"<h1>{title}</h1><p>{LONG}</p>", toc=toc, linear=linear)
+
+
+def _html(body: str, body_attributes: str = "") -> str:
+    """Wrap body HTML in a full document."""
+    return f"<html><head><title>Book</title></head><body {body_attributes}>{body}</body></html>"
 
 
 @pytest.mark.parametrize(
@@ -31,6 +53,9 @@ def _heading(html: str) -> Tag:
         ('<h1 title="abc. Named">Heading</h1>', (None, "Named")),
         ('<h1 title="invalid"> Fallback title </h1>', (None, "Fallback title")),
         ("<h1>Untitled heading</h1>", (None, "Untitled heading")),
+        ("<h1> </h1>", (None, "fallback.xhtml")),
+        ("<h1>Rozdział 1.<br/>Początek</h1>", (None, "Rozdział 1. Początek")),
+        ('<h1 title="4. Multi\n  line">x</h1>', (4, "Multi line")),
     ],
 )
 def test_parse_heading_reads_number_and_title(
@@ -41,55 +66,6 @@ def test_parse_heading_reads_number_and_title(
 
 def test_parse_heading_without_heading_uses_fallback_title() -> None:
     assert parse_heading(None, "fallback.xhtml") == (None, "fallback.xhtml")
-
-
-@pytest.mark.parametrize("html", [b"<h1>T</h1><p>Body</p>", "<h1>T</h1><p>Body</p>"])
-def test_parse_document_accepts_bytes_and_str(html: str | bytes) -> None:
-    assert parse_document(html, "x.xhtml") == (None, "T", "TBody")
-
-
-def test_parse_document_drops_scripts_and_styles() -> None:
-    html = "<p>Keep</p><script>drop()</script><style>p {}</style>"
-    assert parse_document(html, "x.xhtml")[2] == "Keep"
-
-
-@pytest.mark.parametrize(
-    ("title", "expected"),
-    [
-        ("Podziękowania", True),
-        ("", True),
-        ("Spis treści:", True),
-        ("Chapter One", False),
-    ],
-)
-def test_is_fluff(title: str, expected: bool) -> None:
-    assert is_fluff(title) is expected
-
-
-def test_read_chapters_numbers_unnumbered_chapters_by_position() -> None:
-    items = []
-    for content in (
-        b'<h1 title="7. Chapter Seven">Heading</h1><p>Text</p>',
-        "<h1>Untitled heading</h1><p>Text</p>",
-        "<p>No heading</p>",
-        '<h1 title="invalid">Fallback title</h1><p>Text</p>',
-    ):
-        item = Mock()
-        item.get_type.return_value = ebooklib.ITEM_DOCUMENT
-        item.get_content.return_value = content
-        item.get_name.return_value = "fallback.xhtml"
-        items.append(item)
-
-    with patch("anyaudiobook.epub_parser.epub.read_epub") as read_epub:
-        read_epub.return_value.get_items.return_value = items
-        chapters = read_chapters("book.epub")
-
-    assert [(c.chapter_number, c.title) for c in chapters] == [
-        (7, "Chapter Seven"),
-        (2, "Untitled heading"),
-        (3, "fallback.xhtml"),
-        (4, "Fallback title"),
-    ]
 
 
 def test_read_chapters_from_real_epub_skips_fluff_and_empty_pages(
@@ -103,3 +79,234 @@ def test_read_chapters_from_real_epub_skips_fluff_and_empty_pages(
     ]
     assert "First words." in chapters[0].content
     assert "p {}" not in chapters[1].content
+
+
+def test_read_book_numbers_unnumbered_chapters_by_position(
+    make_epub: EpubFactory,
+) -> None:
+    path = make_epub(
+        [
+            Page("a.xhtml", f'<h1 title="7. Chapter Seven">Heading</h1><p>{LONG}</p>'),
+            _chapter("b.xhtml", "Untitled heading"),
+            Page("c.xhtml", f"<p>{LONG}</p>"),
+            Page("d.xhtml", f'<h1 title="invalid">Fallback title</h1><p>{LONG}</p>'),
+        ]
+    )
+
+    chapters = read_book(path).chapters
+
+    assert [(c.chapter_number, c.title) for c in chapters] == [
+        (7, "Chapter Seven"),
+        (2, "Untitled heading"),
+        (3, "c.xhtml"),
+        (4, "Fallback title"),
+    ]
+
+
+def test_read_book_follows_spine_not_manifest_order(make_epub: EpubFactory) -> None:
+    path = make_epub(
+        [_chapter("b.xhtml", "Second"), _chapter("a.xhtml", "First")],
+        spine=["a.xhtml", "b.xhtml"],
+    )
+
+    assert [c.title for c in read_chapters(path)] == ["First", "Second"]
+
+
+def test_read_book_skips_navigation_document_in_spine(make_epub: EpubFactory) -> None:
+    path = make_epub(
+        [_chapter("ch1.xhtml", "One", toc="One")], spine=["nav", "ch1.xhtml"]
+    )
+
+    book = read_book(path)
+
+    assert [(d.kind, d.narrate) for d in book.decisions] == [
+        (MatterKind.TOC, False),
+        (MatterKind.BODY, True),
+    ]
+    assert [c.title for c in book.chapters] == ["One"]
+
+
+def test_read_book_titles_headingless_page_from_toc(make_epub: EpubFactory) -> None:
+    path = make_epub([Page("ch1.xhtml", f"<p>{LONG}</p>", toc="Rozdział pierwszy")])
+
+    assert [c.title for c in read_chapters(path)] == ["Rozdział pierwszy"]
+
+
+def test_read_book_skips_pages_from_guide_and_non_linear_spine(
+    make_epub: EpubFactory,
+) -> None:
+    path = make_epub(
+        [
+            _chapter("legal.xhtml", "Legalese"),
+            _chapter("ch1.xhtml", "One"),
+            _chapter("popup.xhtml", "Popup", linear=False),
+            _chapter("ch2.xhtml", "Two"),
+        ],
+        guide=[{"href": "legal.xhtml", "title": "Legal", "type": "copyright-page"}],
+    )
+
+    book = read_book(path)
+
+    assert [d.kind for d in book.decisions] == [
+        MatterKind.COPYRIGHT,
+        MatterKind.BODY,
+        MatterKind.AUXILIARY,
+        MatterKind.BODY,
+    ]
+    assert [c.title for c in book.chapters] == ["One", "Two"]
+
+
+def test_read_book_honours_bodymatter_landmark(make_epub: EpubFactory) -> None:
+    pages = [
+        _chapter("preface.xhtml", "Preface"),
+        Page("motto.xhtml", "<p>To be or not to be.</p>"),
+        _chapter("ch1.xhtml", "One"),
+    ]
+    guide = [{"href": "ch1.xhtml", "title": "Start", "type": "text"}]
+
+    assert [c.title for c in read_chapters(make_epub(pages))] == [
+        "Preface",
+        "motto.xhtml",
+        "One",
+    ]
+    assert [c.title for c in read_chapters(make_epub(pages, guide=guide))] == [
+        "Preface",
+        "One",
+    ]
+
+
+def test_read_book_narrates_body_only_without_note_markers(
+    make_epub: EpubFactory,
+) -> None:
+    path = make_epub(
+        [
+            Page(
+                "ch1.xhtml",
+                f"<h1>One</h1><p>The war ended<sup>1</sup>. {LONG}</p>"
+                '<aside epub:type="footnote"><p>1. A footnote.</p></aside>',
+                head_title="Book Title",
+            )
+        ]
+    )
+
+    content = read_chapters(path)[0].content
+
+    assert content.startswith("One\nThe war ended. word")
+    assert "footnote" not in content
+    assert "Book Title" not in content
+
+
+@pytest.fixture
+def dedicated_book(make_epub: EpubFactory) -> Path:
+    """A book with a cover, a dedication and two chapters."""
+    return make_epub(
+        [
+            Page("cover.xhtml", "<img src='cover.jpg'/>"),
+            Page("dedykacja.xhtml", "<p>Dla mamy</p>"),
+            _chapter("ch1.xhtml", "Chapter 1"),
+            _chapter("ch2.xhtml", "Chapter 2"),
+        ]
+    )
+
+
+@pytest.mark.parametrize(
+    ("options", "titles"),
+    [
+        (FilterOptions(), ["Chapter 1", "Chapter 2"]),
+        (
+            FilterOptions(skip=DEFAULT_SKIP - {MatterKind.DEDICATION}),
+            ["dedykacja.xhtml", "Chapter 1", "Chapter 2"],
+        ),
+        (
+            FilterOptions(include=("^dedyk",)),
+            ["dedykacja.xhtml", "Chapter 1", "Chapter 2"],
+        ),
+        (FilterOptions(exclude=("chapter 2",)), ["Chapter 1"]),
+        (FilterOptions(include=("chapter",), exclude=("chapter 2",)), ["Chapter 1"]),
+        (FilterOptions(include=(".*",)), ["dedykacja.xhtml", "Chapter 1", "Chapter 2"]),
+    ],
+)
+def test_read_book_applies_filter_options(
+    dedicated_book: Path, options: FilterOptions, titles: list[str]
+) -> None:
+    assert [c.title for c in read_chapters(dedicated_book, options)] == titles
+
+
+def test_read_book_explains_overrides(dedicated_book: Path) -> None:
+    options = FilterOptions(include=("dedyk",), exclude=("chapter 2",))
+
+    decisions = read_book(dedicated_book, options).decisions
+
+    assert [(d.position, d.kind, d.narrate) for d in decisions] == [
+        (1, MatterKind.EMPTY, False),
+        (2, MatterKind.DEDICATION, True),
+        (3, MatterKind.BODY, True),
+        (4, MatterKind.BODY, False),
+    ]
+    assert decisions[1].reason.endswith("included by 'dedyk'")
+    assert decisions[3].reason.endswith("excluded by 'chapter 2'")
+    assert decisions[2].word_count == 202
+
+
+def test_load_documents_reads_raw_body_markup() -> None:
+    book = epub.EpubBook()
+    item = epub.EpubHtml(uid="thanks", file_name="Text/thanks.xhtml")
+    item.content = _html(f"<p>{LONG}</p>", 'epub:type="acknowledgments"')
+    book.add_item(item)
+    book.spine = [item]
+
+    documents = load_documents(book)
+
+    assert classify_documents(documents)[0].kind is MatterKind.ACKNOWLEDGMENTS
+
+
+def test_load_documents_falls_back_to_manifest_order_without_spine() -> None:
+    book = epub.EpubBook()
+    for name in ("Text/b.xhtml", "Text/a.xhtml"):
+        item = epub.EpubHtml(uid=name, file_name=name)
+        item.content = _html("<p>Text</p>")
+        book.add_item(item)
+
+    assert [d.file_name for d in load_documents(book)] == [
+        "Text/b.xhtml",
+        "Text/a.xhtml",
+    ]
+
+
+def test_load_documents_collects_toc_labels_and_landmarks() -> None:
+    book = epub.EpubBook()
+    names = ("Text/p.xhtml", "Text/c.xhtml", "Text/d.xhtml")
+    for name in names:
+        item = epub.EpubHtml(uid=name, file_name=name)
+        item.content = _html("<p>Text</p>")
+        book.add_item(item)
+    nav = epub.EpubNav(file_name="Text/nav.xhtml")
+    nav.content = _html(
+        '<nav epub:type="landmarks"><ol>'
+        '<li><a epub:type="bodymatter" href="c.xhtml#start">Start</a></li>'
+        '<li><a epub:type="index" href="d.xhtml">Index</a></li>'
+        "</ol></nav>"
+    )
+    book.add_item(nav)
+    book.add_item(epub.EpubNcx(file_name="ncx/toc.ncx"))
+    book.spine = list(names)
+    book.toc = [
+        (
+            epub.Section("Part", "Text/p.xhtml"),
+            [
+                epub.Link("Text/c.xhtml#x", "Fragment", "l1"),
+                epub.Link("Text/c.xhtml", "Whole", "l2"),
+            ],
+        ),
+        epub.Link("../Text/d.xhtml", "Relative to NCX", "l3"),
+    ]
+    book.guide = [{"href": "Text/d.xhtml#i", "title": "Index", "type": "index"}]
+
+    documents = load_documents(book)
+
+    assert [d.toc_label for d in documents] == ["Part", "Whole", "Relative to NCX"]
+    assert documents[1].references == (Reference("bodymatter", partial=True),)
+    assert set(documents[2].references) == {
+        Reference("index", partial=True),
+        Reference("index"),
+    }
