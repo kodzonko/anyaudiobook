@@ -1,3 +1,5 @@
+# Preferences for technology stack
+
 - using `anyio` (with asyncio backend) over pure `asyncio` for better concurrency and task management. Can't use other backends with `anyio` because Edge TTS relies on `aiohttp` which is asyncio-based.
 - `ebooklib` reads EPUB; `beautifulsoup4` (with `lxml` for XML: NCX, OPF, DOCX properties) handles every HTML-based step.
 - `PyMuPDF` reads PDFs: fast, gives fonts, sizes, superscript flags and positions per span, reads outlines and renders covers. Pinned to 1.x: 2.x makes `onnxruntime`, `numpy` and other layout-analysis packages (~110 MB) hard dependencies, which this project does not use. PyMuPDF is AGPL-3.0.

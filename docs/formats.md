@@ -7,15 +7,15 @@ same form, a list of parts in reading order (each an HTML body) plus the
 book's metadata, so [skipping front and back matter](filtering.md) works the
 same for all of them.
 
-| Extension                                 | Reader        | Parts come from                                                       | Metadata                                |
-| ----------------------------------------- | ------------- | --------------------------------------------------------------------- | --------------------------------------- |
-| `.epub`                                   | `EpubReader`  | spine documents                                                       | title, authors, language, cover         |
-| `.pdf`                                    | `PdfReader`   | outline (bookmarks), else headings found by font size                 | title, authors; cover if page 1 has an image |
-| `.docx`                                   | `DocxReader`  | Word heading styles, else chapter-like paragraphs                     | title, authors, language                |
-| `.doc`, `.rtf`, `.odt`                    | `DocReader`   | converted to DOCX by LibreOffice (or to HTML by macOS `textutil`)     | as the converted file                   |
-| `.mobi`, `.azw`, `.azw3`, `.kf8`, `.prc`  | `MobiReader`  | KF8/AZW3: unpacked EPUB; MOBI 7: NCX table of contents                | title, authors, language, cover         |
-| `.txt`, `.text`                           | `TextReader`  | chapter titles (`Chapter 3`, `Rozdział III`, `Epilogue`, ...)         | none (title from the file name)         |
-| `.html`, `.htm`, `.xhtml`                 | `HtmlReader`  | headings, else chapter-like paragraphs or big fonts                   | `<title>`, author `<meta>`, `lang`      |
+| Extension                                | Reader       | Parts come from                                                   | Metadata                                     |
+| ---------------------------------------- | ------------ | ----------------------------------------------------------------- | -------------------------------------------- |
+| `.epub`                                  | `EpubReader` | spine documents                                                   | title, authors, language, cover              |
+| `.pdf`                                   | `PdfReader`  | outline (bookmarks), else headings found by font size             | title, authors; cover if page 1 has an image |
+| `.docx`                                  | `DocxReader` | Word heading styles, else chapter-like paragraphs                 | title, authors, language                     |
+| `.doc`, `.rtf`, `.odt`                   | `DocReader`  | converted to DOCX by LibreOffice (or to HTML by macOS `textutil`) | as the converted file                        |
+| `.mobi`, `.azw`, `.azw3`, `.kf8`, `.prc` | `MobiReader` | KF8/AZW3: unpacked EPUB; MOBI 7: NCX table of contents            | title, authors, language, cover              |
+| `.txt`, `.text`                          | `TextReader` | chapter titles (`Chapter 3`, `Rozdział III`, `Epilogue`, ...)     | none (title from the file name)              |
+| `.html`, `.htm`, `.xhtml`                | `HtmlReader` | headings, else chapter-like paragraphs or big fonts               | `<title>`, author `<meta>`, `lang`           |
 
 Formats without a table of contents treat each heading as an entry, so text
 before the first heading (title page, copyright) counts as front matter
@@ -65,10 +65,10 @@ AudiobookConverter(
 
 ## Output
 
-| `output_format` | Writer      | `output` is                                   | Result                                                                 |
-| --------------- | ----------- | --------------------------------------------- | ---------------------------------------------------------------------- |
-| `"mp3"`         | `Mp3Writer` | a directory                                   | `NN. Title.mp3` per chapter, ID3 tags: album, artist, title, track, cover |
-| `"m4b"`         | `M4bWriter` | an `.m4b` file, or a directory for `<title>.m4b` | one AAC file with a chapter marker per chapter, tags and cover       |
+| `output_format` | Writer      | `output` is                                      | Result                                                                    |
+| --------------- | ----------- | ------------------------------------------------ | ------------------------------------------------------------------------- |
+| `"mp3"`         | `Mp3Writer` | a directory                                      | `NN. Title.mp3` per chapter, ID3 tags: album, artist, title, track, cover |
+| `"m4b"`         | `M4bWriter` | an `.m4b` file, or a directory for `<title>.m4b` | one AAC file with a chapter marker per chapter, tags and cover            |
 
 M4B needs `ffmpeg`, checked before narration starts. Chapters are narrated
 into a temporary directory and joined at the end; `M4bWriter(bitrate="96k")`
