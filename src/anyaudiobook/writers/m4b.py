@@ -32,6 +32,8 @@ class M4bWriter(AudiobookWriter):
     """
 
     format_name = "m4b"
+    description = "M4B - one audiobook file with chapter markers (needs ffmpeg)"
+    file_suffix = ".m4b"
 
     def __init__(self, bitrate: str = "64k", ffmpeg: str | None = None) -> None:
         """Configure the encoding.

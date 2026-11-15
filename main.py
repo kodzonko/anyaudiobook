@@ -1,62 +1,32 @@
-"""Entry point: convert an ebook into a tagged audiobook.
+"""Entry point: convert an ebook into an audiobook, interactively.
 
-Edit the settings below, then run ``uv run python main.py``.
+Run ``uv run python main.py`` and fill in the form; ``--detach`` converts in
+the background and ``--log`` writes a log next to the audiobook. Choices and
+the list of voices are remembered in ``anyaudiobook.db`` next to this file.
+
+The settings below are the ones the form does not ask for.
 """
 
 from pathlib import Path
 
-from anyaudiobook.converter import AudiobookConverter
+from anyaudiobook.cli import main
+from anyaudiobook.jobs import AdvancedSettings
 from anyaudiobook.matter.models import DEFAULT_SKIP, FilterOptions
-from anyaudiobook.models import BookMetadata
-from anyaudiobook.tts import EdgeTTS
 
-# Any supported ebook: .epub, .pdf, .docx, .doc, .rtf, .odt, .mobi, .azw,
-# .azw3, .txt, .html (see docs/formats.md).
-SOURCE = Path(r"C:\Users\username\path\to\ebook.epub")
-# "mp3": one file per chapter in the OUTPUT directory.
-# "m4b": one audiobook file with chapter markers (needs ffmpeg); OUTPUT may be
-# the .m4b file or a directory to put "<title>.m4b" in.
-OUTPUT_FORMAT = "mp3"
-OUTPUT = Path(r"C:\Users\username\path\to\output_dir")
-# List the voices with `uv run edge-tts --list-voices`.
-VOICE = EdgeTTS("pl-PL-ZofiaNeural", pitch="-10Hz")
-CONCURRENT_CHAPTERS = 5
-
-# Title, authors and cover are read from the ebook; set any of them here to
-# override it (CoverImage is in anyaudiobook.models).
-METADATA = BookMetadata(
-    title=None,  # e.g. "Lorem ipsum"
-    authors=(),  # e.g. ("Jane Doe",)
-    cover=None,  # e.g. CoverImage.from_file(r"C:\path\to\cover.jpg")
+SETTINGS = AdvancedSettings(
+    pitch="+0Hz",  # e.g. "-10Hz"
+    rate="+0%",  # e.g. "+10%"
+    volume="+0%",  # e.g. "-20%"
+    concurrency=5,  # chapters narrated at the same time
+    # Front and back matter to leave out (see docs/filtering.md). For
+    # example, DEFAULT_SKIP - {MatterKind.DEDICATION} (MatterKind is in
+    # anyaudiobook.matter.models) also narrates the dedication.
+    filter_options=FilterOptions(
+        skip=DEFAULT_SKIP,
+        include=(),  # regexes on file name or title to always narrate
+        exclude=(),  # regexes on file name or title to never narrate
+    ),
 )
-
-# Front and back matter to leave out (see docs/filtering.md). For example,
-# DEFAULT_SKIP - {MatterKind.DEDICATION} (MatterKind is in
-# anyaudiobook.matter.models) also narrates the dedication.
-FILTER = FilterOptions(
-    skip=DEFAULT_SKIP,
-    include=(),  # regexes on file name or title to always narrate
-    exclude=(),  # regexes on file name or title to never narrate
-)
-DRY_RUN = False  # True: only print what would be narrated and skipped
-
-
-def main() -> None:
-    """Convert the configured ebook into an audiobook."""
-    converter = AudiobookConverter(
-        SOURCE,
-        OUTPUT,
-        VOICE,
-        output_format=OUTPUT_FORMAT,
-        filter_options=FILTER,
-        metadata=METADATA,
-    )
-    print(converter.report())
-    if DRY_RUN:
-        return
-    for path in converter.convert(CONCURRENT_CHAPTERS):
-        print(f"Wrote {path}")
-
 
 if __name__ == "__main__":
-    main()
+    main(app_dir=Path(__file__).resolve().parent, settings=SETTINGS)

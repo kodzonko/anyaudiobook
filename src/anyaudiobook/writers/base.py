@@ -11,6 +11,7 @@ import anyio
 
 from anyaudiobook.errors import AnyAudiobookError
 from anyaudiobook.models import BookContent, BookMetadata
+from anyaudiobook.progress import Packaging, ProgressCallback, ignore
 from anyaudiobook.tts import SpeechEngine, synthesize_chapters
 
 
@@ -33,7 +34,12 @@ class AudiobookWriter(ABC):
     """
 
     format_name: ClassVar[str]
-    """The format's ``OUTPUT_FORMAT`` name in ``main.py``, e.g. ``m4b``."""
+    """The format's name, e.g. ``m4b``."""
+    description: ClassVar[str]
+    """What the format writes, as offered in the TUI's list of formats."""
+    file_suffix: ClassVar[str | None] = None
+    """Extension of the single file the format writes, e.g. ``.m4b``; None
+    when it writes a folder of files."""
 
     def write(
         self,
@@ -42,6 +48,7 @@ class AudiobookWriter(ABC):
         output: Path,
         engine: SpeechEngine,
         concurrency: int = 10,
+        progress: ProgressCallback = ignore,
     ) -> list[Path]:
         """Narrate ``chapters`` with ``engine`` and package them at ``output``.
 
@@ -51,6 +58,7 @@ class AudiobookWriter(ABC):
             output: Where to write; what it means depends on the format.
             engine: The speech engine to narrate with.
             concurrency: Most chapters narrated at the same time.
+            progress: Told how narration goes, and when packaging starts.
 
         Returns:
             The files written.
@@ -66,12 +74,13 @@ class AudiobookWriter(ABC):
         output = Path(output)
         with self.work_dir(output) as work_dir:
             paths = anyio.run(
-                synthesize_chapters, chapters, work_dir, engine, concurrency
+                synthesize_chapters, chapters, work_dir, engine, concurrency, progress
             )
             tracks = [
                 Track(chapter, path)
                 for chapter, path in zip(chapters, paths, strict=True)
             ]
+            progress(Packaging(output_format=self.format_name))
             return self.package(tracks, metadata, output)
 
     def check(self) -> None:

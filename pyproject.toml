@@ -17,6 +17,7 @@ dependencies = [
     "mutagen==1.48.1",
     "pydantic==2.14.3",
     "pymupdf==1.28.2",            # PyMuPDF 2.x pulls in about 110 MB of ML layout packages this project doesn’t use, so I’m pinning 1.28.2, which has no dependencies and the same core API.
+    "textual==8.2.8",
 ]
 
 [dependency-groups]
@@ -45,6 +46,8 @@ filterwarnings = [
 [tool.coverage.run]
 source = ["anyaudiobook"]
 branch = true
+# Also measure the worker processes the TUI and its tests start.
+patch = ["subprocess"]
 
 [tool.coverage.report]
 show_missing = true

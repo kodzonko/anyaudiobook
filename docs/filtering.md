@@ -17,8 +17,9 @@ The code lives in `src/anyaudiobook/matter/` (classification),
 
 ## Check before you narrate
 
-Narration takes a long time, so look at what will be read first: set
-`DRY_RUN = True` in `main.py` to print the report and stop.
+Narration takes a long time, so look at what will be read first: once the
+ebook is read, press `ctrl+r` in the form to see the report. With `--log`
+it is also written at the top of the log.
 
 ```text
  #  action   kind           words  title                   file               reason
@@ -96,7 +97,7 @@ pauses between them, for example after the chapter title.
 
 ## Configuration
 
-`FilterOptions`, set as `FILTER` in `main.py`:
+`FilterOptions`, set as `filter_options` of `SETTINGS` in `main.py`:
 
 | Option             | Default                                | Meaning                                                                                              |
 | ------------------ | -------------------------------------- | ---------------------------------------------------------------------------------------------------- |
@@ -111,10 +112,12 @@ pauses between them, for example after the chapter title.
 ```python
 from anyaudiobook.matter.models import MatterKind
 
-FILTER = FilterOptions(
-    skip=DEFAULT_SKIP - {MatterKind.DEDICATION, MatterKind.ACKNOWLEDGMENTS},
-    include=(r"^Od tłumacza$",),
-    exclude=(r"front matter",),
+SETTINGS = AdvancedSettings(
+    filter_options=FilterOptions(
+        skip=DEFAULT_SKIP - {MatterKind.DEDICATION, MatterKind.ACKNOWLEDGMENTS},
+        include=(r"^Od tłumacza$",),
+        exclude=(r"front matter",),
+    ),
 )
 ```
 

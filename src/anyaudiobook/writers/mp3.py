@@ -18,6 +18,7 @@ class Mp3Writer(AudiobookWriter):
     """
 
     format_name = "mp3"
+    description = "MP3 - one tagged file per chapter, in a folder"
 
     def work_dir(self, output: Path) -> AbstractContextManager[Path]:
         """Narrate straight into the output directory."""

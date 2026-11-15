@@ -4,6 +4,7 @@ from pathlib import Path
 
 from anyaudiobook.matter.models import Decision, FilterOptions
 from anyaudiobook.models import BookContent, BookMetadata
+from anyaudiobook.progress import ProgressCallback, ignore
 from anyaudiobook.report import format_report
 from anyaudiobook.selection import ParsedBook, read_book
 from anyaudiobook.tts import SpeechEngine
@@ -87,25 +88,42 @@ class AudiobookConverter:
         The user's overrides win over the ebook's own metadata, which wins
         over the file name as the title.
         """
-        return (
-            BookMetadata(title=self.source.stem)
-            .updated(self.book.metadata)
-            .updated(self.metadata_overrides)
+        return audiobook_metadata(
+            self.source, self.book.metadata, self.metadata_overrides
         )
 
     def report(self) -> str:
         """Return a table of what will be narrated and skipped, and why."""
         return format_report(self.decisions)
 
-    def convert(self, concurrency: int = 10) -> list[Path]:
+    def convert(
+        self, concurrency: int = 10, progress: ProgressCallback = ignore
+    ) -> list[Path]:
         """Narrate the chapters and write the audiobook.
 
         Args:
             concurrency: Most chapters narrated at the same time.
+            progress: Told how narration and packaging go.
 
         Returns:
             The files written.
         """
         return self.writer.write(
-            self.chapters, self.metadata, self.output, self.engine, concurrency
+            self.chapters,
+            self.metadata,
+            self.output,
+            self.engine,
+            concurrency,
+            progress,
         )
+
+
+def audiobook_metadata(
+    source: Path, book: BookMetadata, overrides: BookMetadata | None = None
+) -> BookMetadata:
+    """Return the metadata to tag an audiobook with.
+
+    The user's ``overrides`` win over the ebook's own metadata, which wins
+    over the file name as the title.
+    """
+    return BookMetadata(title=source.stem).updated(book).updated(overrides)

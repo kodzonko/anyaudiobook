@@ -26,7 +26,11 @@ project commands with `mise exec --` (for example, `mise exec -- uv --version`).
 - Skips front and back matter (table of contents, copyright, notes, index,
   acknowledgments, ads, ...) and strips footnotes, page numbers and running
   headers from the narration, see [docs/filtering.md](docs/filtering.md)
-- Dry-run report of what will be narrated or skipped, and why
+- Interactive terminal UI: paste the ebook's path, pick the format, file,
+  language and voice, and watch the progress
+- Converts in the background with `--detach`, and logs with `--log`
+- Remembers your last format, language and voice
+- Report of what will be narrated or skipped, and why
 - Processes multiple chapters concurrently for faster conversion
 - Supports every Microsoft Edge TTS voice, with pitch, rate and volume
 
@@ -40,21 +44,19 @@ M4B.
 
 ## Usage
 
-Edit the settings at the top of `main.py` (ebook path, output format and
-location, voice, metadata overrides, what to skip), then run:
-
 ```sh
-uv run python main.py
+uv run python main.py            # convert here, showing progress
+uv run python main.py --detach   # convert in the background (-d)
+uv run python main.py --log      # write a log next to the audiobook (-l)
 ```
 
-It prints which parts of the book it will narrate or skip and why, then
-narrates each chapter. Set `DRY_RUN = True` to stop after the report.
+Paste (or drop) the ebook's path, then choose the output format, where to
+save it (by default `Author - Title` next to the ebook), the language and
+the voice: arrows move, enter or space choose, typing jumps. `ctrl+s`
+converts, `ctrl+r` shows what will be narrated or skipped and why.
 
-To list the voices you can set as `VOICE`:
-
-```sh
-uv run edge-tts --list-voices
-```
+Pitch, rate, volume, concurrency and what to skip are set at the top of
+`main.py`. Details are in [docs/usage.md](docs/usage.md).
 
 ## Development
 

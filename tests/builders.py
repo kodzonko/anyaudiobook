@@ -11,6 +11,8 @@ from reportlab.lib.pagesizes import A5
 from reportlab.lib.utils import simpleSplit
 from reportlab.pdfgen import canvas
 
+from anyaudiobook.tts import TextProgress
+
 # --- MP3 ---------------------------------------------------------------------
 
 _FRAME_HEADER = bytes([0xFF, 0xFB, 0x90, 0xC0])
@@ -42,9 +44,13 @@ class FakeEngine:
         """Return how long the audio for ``text`` lasts."""
         return 0.5 + len(text) / 100
 
-    async def synthesize(self, text: str, output_path: Path) -> None:
-        """Write silence for ``text`` to ``output_path``."""
+    async def synthesize(
+        self, text: str, output_path: Path, progress: TextProgress | None = None
+    ) -> None:
+        """Write silence for ``text`` to ``output_path``, reporting halfway."""
         self.texts.append(text)
+        if progress is not None:
+            progress(len(text) // 2)
         output_path.write_bytes(silent_mp3(self.seconds(text)))
 
 

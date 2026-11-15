@@ -1,6 +1,6 @@
 """Build and parse chapter audio file names."""
 
-from anyaudiobook.models import BookContent
+from anyaudiobook.models import BookContent, BookMetadata
 
 MAX_TITLE_LENGTH = 150
 """Longest title kept in a file name, to stay under path length limits."""
@@ -21,6 +21,25 @@ def clean_title(title: str) -> str:
     if len(cleaned) > MAX_TITLE_LENGTH:
         cleaned = cleaned[: MAX_TITLE_LENGTH - 3] + "..."
     return cleaned
+
+
+def book_filename(metadata: BookMetadata) -> str:
+    """Return ``Author - Title`` for naming a book's audiobook file or folder.
+
+    Whitespace (newlines included) is collapsed, characters file systems
+    forbid are removed, and trailing dots and spaces, which Windows drops
+    from names, are stripped. Without authors it is just the title.
+
+    Args:
+        metadata: The book's title and authors.
+
+    Returns:
+        A name safe for a file or folder, without an extension.
+    """
+    title = " ".join((metadata.title or "").split())
+    author = " ".join(metadata.author.split())
+    name = f"{author} - {title}" if author and title else author or title
+    return clean_title(name).rstrip(". ") or "Audiobook"
 
 
 def chapter_filename(

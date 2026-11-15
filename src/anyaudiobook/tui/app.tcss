@@ -1,0 +1,98 @@
+#form {
+    padding: 0 2;
+}
+
+.field {
+    margin-top: 1;
+    text-style: bold;
+    color: $accent;
+}
+
+.note {
+    height: auto;
+    color: $text-muted;
+    padding: 0 1;
+}
+
+.-error {
+    color: $text-error;
+}
+
+.-warning {
+    color: $text-warning;
+}
+
+.-ok {
+    color: $text-success;
+}
+
+.-busy {
+    color: $text-accent;
+}
+
+ChoiceList {
+    height: auto;
+    max-height: 12;
+}
+
+#pickers {
+    height: auto;
+}
+
+#pickers > Vertical {
+    width: 1fr;
+    height: auto;
+}
+
+#language {
+    margin-right: 1;
+}
+
+#actions {
+    height: auto;
+    margin: 1 0;
+}
+
+#actions > .note {
+    padding: 1 2;
+}
+
+#conversion {
+    padding: 0 2;
+}
+
+#progress {
+    width: 100%;
+    margin: 1 0;
+}
+
+/* Textual's own Bar inside the ProgressBar; its id is "bar". */
+#progress Bar {
+    width: 1fr;
+}
+
+#status {
+    height: auto;
+}
+
+#log {
+    height: 1fr;
+    margin-top: 1;
+    border: round $panel-lighten-2;
+}
+
+ReportScreen {
+    align: center middle;
+}
+
+#report-box {
+    width: 95%;
+    height: 85%;
+    padding: 0 1;
+    border: thick $accent;
+    background: $surface;
+}
+
+#report {
+    height: 1fr;
+}

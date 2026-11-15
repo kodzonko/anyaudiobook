@@ -4,10 +4,12 @@ import pytest
 
 from anyaudiobook.filenames import (
     MAX_TITLE_LENGTH,
+    book_filename,
     chapter_filename,
     clean_title,
     parse_chapter_filename,
 )
+from anyaudiobook.models import BookMetadata
 from tests.conftest import ChapterFactory
 
 
@@ -66,3 +68,51 @@ def test_chapter_filename_uses_the_given_extension(
     make_chapter: ChapterFactory,
 ) -> None:
     assert chapter_filename(make_chapter(3, "Three"), 12, ".wav") == "03. Three.wav"
+
+
+@pytest.mark.parametrize(
+    ("metadata", "expected"),
+    [
+        (
+            BookMetadata(title="Lorem Ipsum", authors=("Jane Doe",)),
+            "Jane Doe - Lorem Ipsum",
+        ),
+        (
+            BookMetadata(title="Dune", authors=("Frank Herbert", "Brian Herbert")),
+            "Frank Herbert, Brian Herbert - Dune",
+        ),
+        (BookMetadata(title="Untitled Notes"), "Untitled Notes"),
+        (BookMetadata(authors=("Jane Doe",)), "Jane Doe"),
+        (BookMetadata(), "Audiobook"),
+        (
+            BookMetadata(title='What? A "Story":\n Part 1/2', authors=("Jane\tDoe",)),
+            "Jane Doe - What A Story Part 12",
+        ),
+        (
+            BookMetadata(title="And then...", authors=("Jane Doe",)),
+            "Jane Doe - And then",
+        ),
+        (BookMetadata(title="..."), "Audiobook"),
+    ],
+    ids=[
+        "author-title",
+        "authors",
+        "no-author",
+        "no-title",
+        "nothing",
+        "unsafe",
+        "dots",
+        "only-dots",
+    ],
+)
+def test_book_filename_is_author_dash_title_and_safe(
+    metadata: BookMetadata, expected: str
+) -> None:
+    assert book_filename(metadata) == expected
+
+
+def test_book_filename_caps_its_length() -> None:
+    name = book_filename(BookMetadata(title="x" * 500, authors=("Jane Doe",)))
+
+    assert len(name) <= MAX_TITLE_LENGTH
+    assert name.startswith("Jane Doe - xxx")

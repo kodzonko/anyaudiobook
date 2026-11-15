@@ -51,13 +51,14 @@ Only DRM-free files can be read; others raise `UnreadableBookError`.
 
 ## Output
 
-| `OUTPUT_FORMAT` | Writer      | `output` is                                      | Result                                                                    |
-| --------------- | ----------- | ------------------------------------------------ | ------------------------------------------------------------------------- |
-| `"mp3"`         | `Mp3Writer` | a directory                                      | `NN. Title.mp3` per chapter, ID3 tags: album, artist, title, track, cover |
-| `"m4b"`         | `M4bWriter` | an `.m4b` file, or a directory for `<title>.m4b` | one AAC file with a chapter marker per chapter, tags and cover            |
+| Format | Writer      | "Save as" is                                       | Result                                                                    |
+| ------ | ----------- | -------------------------------------------------- | ------------------------------------------------------------------------- |
+| MP3    | `Mp3Writer` | a folder, by default `Author - Title`              | `NN. Title.mp3` per chapter, ID3 tags: album, artist, title, track, cover |
+| M4B    | `M4bWriter` | an `.m4b` file, by default `Author - Title.m4b`    | one AAC file with a chapter marker per chapter, tags and cover            |
 
 M4B needs `ffmpeg`, checked before narration starts. Chapters are narrated
 into a temporary directory and joined at the end, as 64 kbit/s AAC.
 
-Title, authors and cover come from the ebook; `metadata=BookMetadata(...)`
-overrides any of them, and the file name is the title of last resort.
+Title, authors and cover come from the ebook, and the file name is the
+title of last resort. The default "Save as" is named `Author - Title` from
+them, next to the ebook, without characters file systems forbid.
